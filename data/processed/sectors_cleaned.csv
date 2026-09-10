@@ -1,0 +1,23 @@
+sr_no,sector_name,project_count,original_cost_cr,revised_cost_cr,expenditure_cr
+1,Roads & Highways,1137,1054522.87,1081116.4,369901.55
+2,Railways,262,721622.11,874475.87,581285.76
+3,Coal,119,187695.91,185433.9,49332.89
+4,Oil & Gas,96,370568.19,399477.52,201674.19
+5,Transmission & Distribution,69,208869.73,214833.3,69254.78
+6,Water Resources,40,117255.04,220989.2,160182.16
+7,Electricity Generation,40,340779.84,396049.45,159974.75
+8,Healthcare,34,20123.91,24551.24,9946.63
+9,Education,31,16072.15,15519.97,8884.64
+10,Waste & Water,27,8620.41,8719.69,5132.31
+11,Urban Public Transport,27,315168.47,335923.7,181938.72
+12,Aviation & Aviation Infrastructure,26,21600.76,22814.76,10762.01
+13,Steel,18,17811.66,21049.95,10073.03
+14,Energy Storage,16,80623.3,119393.82,101617.3
+15,Telecommunication,12,151125.15,273253.44,77035.7
+16,Real Estate,11,49336.1,49382.13,15783.85
+17,Metals & Mining,6,9689.36,13843.37,7462.32
+18,Shipping,5,13572.5,13613.11,10569.44
+19,Construction,2,899.37,899.37,260.49
+20,"Tourism, Hospitality & Wellness",1,573.0,1238.05,614.91
+21,Inland Waterways,1,5369.18,5061.15,3990.06
+22,Logistics Infrastructure,1,763.0,763.0,430.0

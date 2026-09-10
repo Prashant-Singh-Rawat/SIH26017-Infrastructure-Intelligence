@@ -1,0 +1,92 @@
+{
+  "dataset_size": 1981,
+  "valid_delayed_rows": 1267,
+  "base_delay_rate": 0.6396,
+  "classification_metrics": {
+    "accuracy": 0.8615,
+    "precision": 0.8842,
+    "recall": 0.9016,
+    "f1": 0.8928,
+    "roc_auc": 0.9189,
+    "cv_roc_auc_mean": 0.9235,
+    "cv_roc_auc_std": 0.013
+  },
+  "regression_metrics": {
+    "mae_days": 161.6,
+    "rmse_days": 258.7,
+    "r2": 0.8848
+  },
+  "top_predictive_features": [
+    {
+      "feature": "original_end_year",
+      "importance": 0.7185
+    },
+    {
+      "feature": "original_cost_cr",
+      "importance": 0.0759
+    },
+    {
+      "feature": "log_original_cost",
+      "importance": 0.0633
+    },
+    {
+      "feature": "original_end_quarter",
+      "importance": 0.0476
+    },
+    {
+      "feature": "ministry_delay_rate",
+      "importance": 0.0172
+    },
+    {
+      "feature": "sector_name_Railways",
+      "importance": 0.0122
+    },
+    {
+      "feature": "line_ministry_Ministry of Health & Family Welfare",
+      "importance": 0.0104
+    },
+    {
+      "feature": "line_ministry_Ministry of Railways",
+      "importance": 0.0098
+    },
+    {
+      "feature": "sector_delay_rate",
+      "importance": 0.0052
+    },
+    {
+      "feature": "sector_name_Transmission & Distribution",
+      "importance": 0.0045
+    },
+    {
+      "feature": "sector_name_Shipping",
+      "importance": 0.0045
+    },
+    {
+      "feature": "sector_name_Real Estate",
+      "importance": 0.0041
+    },
+    {
+      "feature": "sector_name_Roads & Highways",
+      "importance": 0.0029
+    },
+    {
+      "feature": "line_ministry_Ministry of Road Transport & Highways",
+      "importance": 0.0029
+    },
+    {
+      "feature": "sector_name_Urban Public Transport",
+      "importance": 0.0029
+    }
+  ],
+  "features_list": [
+    "sector_name",
+    "line_ministry",
+    "cost_scale_bucket",
+    "original_cost_cr",
+    "log_original_cost",
+    "original_end_year",
+    "original_end_quarter",
+    "sector_delay_rate",
+    "ministry_delay_rate"
+  ]
+}

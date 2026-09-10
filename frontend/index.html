@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIH26017 Prototype / Demonstration | Infrastructure Delay & Cost Overrun Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <!-- Top Tricolor Ribbon -->
+  <div class="tricolor-strip">
+    <div class="tc-saffron"></div>
+    <div class="tc-white"></div>
+    <div class="tc-green"></div>
+  </div>
+
+  <!-- Government of India Official Top Utility Bar -->
+  <div class="gov-topbar">
+    <div class="gov-topbar-left">
+      <span class="gov-flag-icon">🇮🇳</span>
+      <span>भारत सरकार | Government of India</span>
+      <span style="opacity:0.4;">|</span>
+      <span style="background: rgba(255,255,255,0.22); padding: 2px 6px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px;">SIH26017 Prototype / Demonstration</span>
+    </div>
+    <div class="gov-topbar-right">
+      <label style="font-size: 11px; opacity: 0.85; margin-right: 4px;">Role:</label>
+      <select id="auth-role-select" onchange="switchAuthRole(this.value)" style="background: rgba(255,255,255,0.18); color: white; border: 1px solid rgba(255,255,255,0.35); border-radius: 3px; font-size: 11px; padding: 1px 4px; cursor: pointer; outline: none; margin-right: 6px;">
+        <option value="ANALYST" style="color: #0f172a;" selected>ANALYST (Risk &amp; Sim)</option>
+        <option value="OFFICER" style="color: #0f172a;">OFFICER (Alerts &amp; Audits)</option>
+        <option value="ADMIN" style="color: #0f172a;">ADMIN (Full Governance)</option>
+        <option value="VIEWER" style="color: #0f172a;">VIEWER (Read-Only)</option>
+      </select>
+      <span style="opacity:0.4;">|</span>
+      <button onclick="adjustFontSize(1)">A+</button>
+      <button onclick="adjustFontSize(0)">A</button>
+      <button onclick="adjustFontSize(-1)">A-</button>
+      <span style="opacity:0.4;">|</span>
+      <span id="gov-live-clock">10-Sep-2026 23:30 IST</span>
+    </div>
+  </div>
+
+  <!-- Main Institutional Header -->
+  <header class="gov-header">
+    <div class="gov-header-inner">
+      <div class="gov-branding">
+        <div class="emblem-wrapper" title="National Emblem of India">
+          <!-- Official Ashoka Lion Emblem Representation -->
+          <svg viewBox="0 0 24 28" fill="currentColor">
+            <path d="M12 2C9.5 2 7.5 3.8 7.5 6c0 1.2.6 2.3 1.5 3-.9.7-1.5 1.8-1.5 3 0 1.3.7 2.4 1.7 3.1C7.8 15.8 7 17.3 7 19h10c0-1.7-.8-3.2-2.2-3.9 1-.7 1.7-1.8 1.7-3.1 0-1.2-.6-2.3-1.5-3 .9-.7 1.5-1.8 1.5-3 0-2.2-2-4-4.5-4zm0 2c1.4 0 2.5 1 2.5 2.2 0 .9-.6 1.7-1.5 2h-2c-.9-.3-1.5-1.1-1.5-2C9.5 5 10.6 4 12 4zm0 6.5c1.4 0 2.5.9 2.5 2s-1.1 2-2.5 2-2.5-.9-2.5-2 1.1-2 2.5-2zm-3.8 8.5c.5-1.2 1.8-2 3.8-2s3.3.8 3.8 2H8.2z"/>
+            <rect x="5" y="21" width="14" height="2" rx="1"/>
+            <rect x="4" y="24" width="16" height="2" rx="1"/>
+          </svg>
+        </div>
+        <div class="gov-titles">
+          <span class="gov-org-hi">सांख्यिकी और कार्यक्रम कार्यान्वयन मंत्रालय</span>
+          <span class="gov-org-en">MINISTRY OF STATISTICS AND PROGRAMME IMPLEMENTATION</span>
+          <div class="gov-portal-title">
+            Infrastructure Delay &amp; Cost Overrun Intelligence Platform
+            <span class="sih-badge">SIH26017 Prototype / Demonstration</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provenance Badges Legend -->
+      <div class="provenance-legend">
+        <span class="legend-label">Data Provenance:</span>
+        <span class="tag-badge tag-found" title="Direct ground truth from raw government CSVs">[DATA FOUND IN UPLOADED FILE]</span>
+        <span class="tag-badge tag-derived" title="Mathematically derived metrics and zero-leakage ML predictions">[DERIVED METRIC]</span>
+        <span class="tag-badge tag-sim" title="Clearly labeled simulation layer for land acquisition demo">[DEMO/SIMULATION]</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Phase 9: Real-Time Verified Data Freshness Strip & Provenance -->
+  <div class="data-freshness-strip" id="global-data-freshness-strip">
+    <div class="freshness-inner">
+      <div class="freshness-items-group">
+        <div class="freshness-item">
+          <span class="freshness-label">DATA SOURCE:</span>
+          <span class="freshness-value" id="freshness-source">MoSPI PAIMANA</span>
+        </div>
+        <div class="freshness-item">
+          <span class="freshness-label">LATEST SNAPSHOT:</span>
+          <span class="freshness-value" id="freshness-snapshot">April 2026 (Baseline)</span>
+        </div>
+        <div class="freshness-item">
+          <span class="freshness-label">MONITORED PROJECTS:</span>
+          <span class="freshness-value" id="freshness-records">1,981</span>
+        </div>
+        <div class="freshness-item">
+          <span class="freshness-label">SOURCE STATUS:</span>
+          <span class="freshness-badge status-historical" id="freshness-status">HISTORICAL SNAPSHOT</span>
+        </div>
+        <div class="freshness-item">
+          <span class="freshness-label">API ADAPTER:</span>
+          <span class="freshness-badge status-ready" id="freshness-api" title="Configured and ready for official government API credentials">READY FOR AUTHORIZED API CREDENTIALS</span>
+        </div>
+      </div>
+      <div class="freshness-actions">
+        <button class="btn-data-update-center" onclick="openDataUpdateCenter()" id="btn-open-update-center">
+          📊 Data Update Center
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Bar -->
+  <nav class="gov-navbar">
+    <div class="nav-container">
+      <button class="gov-nav-btn active" id="nav-overview" onclick="switchNav('overview')">
+        🏛️ Executive Overview
+      </button>
+      <button class="gov-nav-btn" id="nav-explorer" onclick="switchNav('explorer')">
+        📋 Master Projects Explorer (1,981)
+      </button>
+      <button class="gov-nav-btn" id="nav-evaluator" onclick="switchNav('evaluator')">
+        ⚠️ Early Warning &amp; Risk Evaluator
+      </button>
+      <button class="gov-nav-btn" id="nav-simulator" onclick="switchNav('simulator')">
+        🔄 What-If Policy Simulator
+      </button>
+      <button class="gov-nav-btn" id="nav-alerts" onclick="switchNav('alerts')">
+        🚨 Critical Alerts Watchlist <span class="gov-nav-badge" id="nav-alert-count">!</span>
+      </button>
+      <button class="gov-nav-btn" id="nav-land" onclick="switchNav('land')">
+        🗺️ Land &amp; GIS Demonstration <span class="tag-badge tag-sim" style="font-size: 9px; padding: 1px 4px;">DEMO</span>
+      </button>
+      <button class="gov-nav-btn" id="nav-audit" onclick="switchNav('audit')">
+        📑 Data Quality &amp; Integrity Audit
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Portal Content -->
+  <main class="gov-main">
+
+    <!-- ================= TAB 1: EXECUTIVE OVERVIEW ================= -->
+    <section id="tab-overview" class="tab-pane active">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>Central Sector Infrastructure Portfolio Status (&gt;₹150 Cr)</h2>
+          <p>Real-time macro telemetry compiled across 1,981 sanctioned projects in 22 infrastructure sectors.</p>
+        </div>
+        <div>
+          <span class="tag-badge tag-found">[DATA FOUND IN UPLOADED FILE]</span>
+        </div>
+      </div>
+
+      <!-- Macro KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Total Monitored Projects</span>
+            <span class="tag-badge tag-found" style="font-size: 9px;">RAW</span>
+          </div>
+          <div class="kpi-card-value" id="kpi-total-projects">1,981</div>
+          <div class="kpi-card-subtext">Central Sector Infrastructure (&gt;₹150 Cr)</div>
+        </div>
+
+        <div class="kpi-card alert-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Delayed Projects</span>
+            <span class="tag-badge tag-derived" style="font-size: 9px;">DERIVED</span>
+          </div>
+          <div class="kpi-card-value" style="color:#dc2626;" id="kpi-delayed-count">1,267</div>
+          <div class="kpi-card-subtext"><strong id="kpi-delay-rate">64.0%</strong> portfolio delay frequency</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Original Sanction Outlay</span>
+            <span class="tag-badge tag-found" style="font-size: 9px;">RAW</span>
+          </div>
+          <div class="kpi-card-value" id="kpi-orig-outlay">₹ 37,12,662 Cr</div>
+          <div class="kpi-card-subtext">Initial capital approvals sanctioned</div>
+        </div>
+
+        <div class="kpi-card warning-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Revised Sanction Outlay</span>
+            <span class="tag-badge tag-found" style="font-size: 9px;">RAW</span>
+          </div>
+          <div class="kpi-card-value" style="color:#c2410c;" id="kpi-rev-outlay">₹ 42,78,402 Cr</div>
+          <div class="kpi-card-subtext text-warning">+₹ 5,65,740 Cr Net Cost Escalation</div>
+        </div>
+
+        <div class="kpi-card success-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Cumulative Expenditure</span>
+            <span class="tag-badge tag-found" style="font-size: 9px;">RAW</span>
+          </div>
+          <div class="kpi-card-value" style="color:#15803d;" id="kpi-expenditure">₹ 20,36,107 Cr</div>
+          <div class="kpi-card-subtext">54.8% of sanctioned outlay spent to date</div>
+        </div>
+      </div>
+
+      <!-- Secondary Audit & Risk Indicator Row -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Average Schedule Delay</span>
+            <span class="tag-badge tag-derived" style="font-size: 9px;">DERIVED</span>
+          </div>
+          <div class="kpi-card-value" id="kpi-avg-delay">712.4 Days</div>
+          <div class="kpi-card-subtext">Median delay: <strong>451 Days</strong> (~15 Months)</div>
+        </div>
+
+        <div class="kpi-card warning-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Unrevised Sentinel (Cost = 0)</span>
+            <span class="tag-badge tag-derived" style="font-size: 9px;">AUDIT</span>
+          </div>
+          <div class="kpi-card-value" style="color:#b45309;" id="kpi-unrevised-count">905 Projects</div>
+          <div class="kpi-card-subtext">45.7% records have revised cost pending</div>
+        </div>
+
+        <div class="kpi-card alert-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Capital Exhaustion (&gt;100%)</span>
+            <span class="tag-badge tag-derived" style="font-size: 9px;">AUDIT</span>
+          </div>
+          <div class="kpi-card-value" style="color:#dc2626;" id="kpi-overspent-count">160 Projects</div>
+          <div class="kpi-card-subtext">Disbursements exceed original sanctioned outlay</div>
+        </div>
+
+        <div class="kpi-card alert-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Critical High-Risk Alerts</span>
+            <span class="tag-badge tag-derived" style="font-size: 9px;">ALERTS</span>
+          </div>
+          <div class="kpi-card-value" style="color:#991b1b;" id="kpi-alerts-count">612 Alerts</div>
+          <div class="kpi-card-subtext">Severe delay (&gt;730d) or capital overrun</div>
+        </div>
+      </div>
+
+      <!-- Official Charts Grid -->
+      <div class="charts-grid">
+        <div class="chart-box-card">
+          <div class="chart-box-header">
+            <h3>Top Infrastructure Sectors by Sanctioned Capital (₹ Crore)</h3>
+            <span class="tag-badge tag-found">Sector-Wise Report</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="sectorChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box-card">
+          <div class="chart-box-header">
+            <h3>Physical Progress Distribution Across Portfolio (% Brackets)</h3>
+            <span class="tag-badge tag-found">Physical-Progress-Report</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="progressChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- State-Wise Monitoring -->
+      <div class="chart-box-card" style="margin-bottom: 20px;">
+        <div class="chart-box-header">
+          <h3>State/UT-Level Capital Allocation &amp; Cumulative Expenditure (₹ Crore)</h3>
+          <span class="tag-badge tag-found">State-Wise Report (Top 16 States)</span>
+        </div>
+        <div class="chart-container tall">
+          <canvas id="stateChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: MASTER PROJECTS EXPLORER ================= -->
+    <section id="tab-explorer" class="tab-pane">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>Master Infrastructure Projects Registry</h2>
+          <p>Browse, filter and audit all 1,981 central sector projects. Click any row for in-depth AI telemetry.</p>
+        </div>
+        <div>
+          <span class="tag-badge tag-found">[DATA FOUND IN UPLOADED FILE]</span>
+        </div>
+      </div>
+
+      <!-- Toolbar & Filters -->
+      <div class="explorer-toolbar">
+        <div class="search-input-wrapper">
+          <input type="text" id="explorer-search" class="gov-input" placeholder="Search by Project Name or Code (e.g. 706718, Imphal Airport, Highway, Metro)..." oninput="debounceSearch()">
+        </div>
+        <div class="filters-row">
+          <select id="filter-sector" class="gov-select" onchange="applyFilters()">
+            <option value="all">All Sectors (22)</option>
+          </select>
+          <select id="filter-ministry" class="gov-select" onchange="applyFilters()">
+            <option value="all">All Ministries (17)</option>
+          </select>
+          <select id="filter-state" class="gov-select" onchange="applyFilters()">
+            <option value="all">All States / UTs</option>
+          </select>
+          <select id="filter-status" class="gov-select" onchange="applyFilters()">
+            <option value="all">All Delay Statuses</option>
+            <option value="delayed">Delayed Only (64%)</option>
+            <option value="on_schedule">On Schedule / Same Date</option>
+            <option value="not_revised">Revised Date Missing (354 rows)</option>
+          </select>
+          <select id="filter-quality" class="gov-select" onchange="applyFilters()">
+            <option value="all">All Audit Statuses</option>
+            <option value="clean">Clean Records Only</option>
+            <option value="anomalies">Audit Flagged Only</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div class="table-wrapper">
+        <table class="gov-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Project Name</th>
+              <th>Sector</th>
+              <th>Ministry</th>
+              <th class="num-cell">Original Cost (₹ Cr)</th>
+              <th class="num-cell">Revised Cost (₹ Cr)</th>
+              <th class="num-cell">Expenditure (₹ Cr)</th>
+              <th>Original End</th>
+              <th>Revised End</th>
+              <th>Schedule Status</th>
+              <th>Audit Flags</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="projects-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="table-pagination-bar">
+        <span id="records-counter">Showing 1–25 of 1,981 projects</span>
+        <div class="pagination-btns">
+          <button class="gov-btn" id="btn-prev" onclick="changePage(-1)">Previous</button>
+          <span id="page-display">Page 1 of 80</span>
+          <button class="gov-btn" id="btn-next" onclick="changePage(1)">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: EARLY WARNING & RISK EVALUATOR ================= -->
+    <section id="tab-evaluator" class="tab-pane">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>Pre-Construction Early Warning &amp; Delay Prediction Engine</h2>
+          <p>Strict Zero-Leakage ML Model (Gradient Boosting &amp; RF Ensembles) predicting risk from sanctioned inception parameters.</p>
+        </div>
+        <div>
+          <span class="tag-badge tag-derived">[ZERO-LEAKAGE ML ENGINE]</span>
+        </div>
+      </div>
+
+      <div class="two-col-layout">
+        <!-- Input Form -->
+        <div class="portal-card">
+          <div class="portal-card-header">
+            <h3>Project Inception Parameters</h3>
+            <span class="tag-badge tag-derived">Safe Predictors</span>
+          </div>
+
+          <form id="evaluator-form" onsubmit="handleEvaluation(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="gov-label" for="eval-sector">Sector Name *</label>
+                <select id="eval-sector" class="gov-select" required></select>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="eval-ministry">Line Ministry *</label>
+                <select id="eval-ministry" class="gov-select" required></select>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="eval-cost">Sanctioned Original Cost (₹ Crore) *</label>
+                <input type="number" id="eval-cost" class="gov-input" min="1" step="0.1" value="1500" required>
+                <span class="gov-hint">Categorized automatically into capital risk tiers.</span>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="eval-year">Planned Commissioning Year *</label>
+                <input type="number" id="eval-year" class="gov-input" min="2024" max="2040" value="2028" required>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="eval-quarter">Planned Quarter *</label>
+                <select id="eval-quarter" class="gov-select">
+                  <option value="1">Q1 (Jan - Mar)</option>
+                  <option value="2" selected>Q2 (Apr - Jun)</option>
+                  <option value="3">Q3 (Jul - Sep)</option>
+                  <option value="4">Q4 (Oct - Dec)</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="gov-btn gov-btn-primary" style="width: 100%; justify-content: center; padding: 10px;">
+              ⚡ Evaluate Project Risk &amp; Generate Explainable AI Report
+            </button>
+          </form>
+
+          <!-- Zero Leakage Declaration -->
+          <div style="margin-top: 18px; padding: 12px; background-color: #f8fafc; border: 1px solid var(--gov-border); border-radius: var(--radius-sm); font-size: 11px;">
+            <strong style="color: var(--gov-navy);">Zero-Leakage Assurance:</strong>
+            Features used strictly reflect project sanctioning conditions (Sector, Ministry historical baseline, Capital magnitude, Target horizon). Downstream variables such as actual expenditure and revised completion dates are quarantined to ensure zero data leakage.
+          </div>
+        </div>
+
+        <!-- Evaluation Results & SHAP -->
+        <div class="portal-card" id="eval-results-wrapper">
+          <div class="portal-card-header">
+            <h3>Predictive Risk &amp; Decision Support Assessment</h3>
+            <span class="tag-badge tag-derived">[ML INFERENCE]</span>
+          </div>
+
+          <div id="eval-placeholder" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+            <p style="font-size: 13px;">Configure inception parameters and submit evaluation to view:</p>
+            <ul style="list-style: none; margin-top: 10px; font-size: 12px; line-height: 1.8;">
+              <li>✔ Delay Probability &amp; Categorized Risk Tier</li>
+              <li>✔ Expected Delay Duration (Days &amp; Months)</li>
+              <li>✔ SHAP Feature Attribution Waterfall (Explainable AI)</li>
+              <li>✔ Institutional Mitigation Recommendations</li>
+            </ul>
+          </div>
+
+          <div id="eval-output" class="hidden">
+            <div id="eval-tier-banner" class="result-tier-banner tier-high">
+              <div>
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase;">Assigned Risk Tier:</span>
+                <div style="font-size: 18px; font-weight: 800;" id="eval-tier-text">High Risk (Amber)</div>
+              </div>
+              <span class="tag-badge tag-derived">GBC Model</span>
+            </div>
+
+            <div class="metrics-row">
+              <div class="metric-box">
+                <div class="metric-box-title">Delay Probability</div>
+                <div class="metric-box-val" id="eval-prob-val" style="color: #dc2626;">78.5%</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-box-title">Expected Timeline Slippage</div>
+                <div class="metric-box-val" id="eval-delay-val" style="color: #c2410c;">+380 Days</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="eval-delay-sub">≈ 12.5 Months past target</div>
+              </div>
+            </div>
+
+            <!-- SHAP Explainability -->
+            <div class="shap-box">
+              <div class="shap-header">
+                <span>SHAP Feature Attribution (Key Factors Driving Risk):</span>
+                <span class="tag-badge tag-derived" style="font-size: 9px;">TreeExplainer</span>
+              </div>
+              <div id="eval-shap-list"></div>
+            </div>
+
+            <!-- Action Recommendations -->
+            <div class="recommendations-box">
+              <div style="font-size: 12px; font-weight: 700; color: #166534; margin-bottom: 8px;">
+                Institutional Decision Support &amp; Policy Recommendations:
+              </div>
+              <div id="eval-recs-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: WHAT-IF POLICY SIMULATOR ================= -->
+    <section id="tab-simulator" class="tab-pane">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>What-If Policy &amp; Administrative Intervention Simulator</h2>
+          <p>Simulate policy interventions on project risk to quantify expected delay reductions before sanctioning.</p>
+        </div>
+        <div>
+          <span class="tag-badge tag-derived">[POLICY SIMULATION]</span>
+        </div>
+      </div>
+
+      <div class="two-col-layout">
+        <!-- Simulator Controls -->
+        <div class="portal-card">
+          <div class="portal-card-header">
+            <h3>Project Baseline &amp; Intervention Controls</h3>
+            <span class="tag-badge tag-derived">Interactive Mode</span>
+          </div>
+
+          <form id="sim-form" onsubmit="handleSimulation(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="gov-label" for="sim-sector">Sector Name</label>
+                <select id="sim-sector" class="gov-select" required></select>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="sim-ministry">Line Ministry</label>
+                <select id="sim-ministry" class="gov-select" required></select>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="sim-cost">Original Sanction Cost (₹ Cr)</label>
+                <input type="number" id="sim-cost" class="gov-input" min="10" value="2500" required>
+              </div>
+
+              <div class="form-group">
+                <label class="gov-label" for="sim-year">Planned End Year</label>
+                <input type="number" id="sim-year" class="gov-input" min="2025" max="2035" value="2028" required>
+              </div>
+            </div>
+
+            <div style="font-size: 12px; font-weight: 700; color: var(--gov-navy-dark); margin: 16px 0 8px 0;">
+              Select Administrative &amp; Structural Interventions:
+            </div>
+
+            <div class="intervention-group">
+              <label class="checkbox-item">
+                <input type="checkbox" id="sim-chk-clearance" checked>
+                <div class="checkbox-text">
+                  <strong>PM GatiShakti Single-Window Fast-Track Clearance</strong>
+                  <span>Synchronizes statutory clearances across MoEFCC, Railways, and State utility shifting. Dampens bureaucratic latency.</span>
+                </div>
+              </label>
+
+              <label class="checkbox-item">
+                <input type="checkbox" id="sim-chk-land" checked>
+                <div class="checkbox-text">
+                  <strong>Advanced Pre-Sanction Right-of-Way (RoW) Clearance</strong>
+                  <span>Secures 80%+ encumbrance-free physical possession prior to financial bid award. Eliminates linear alignment disputes.</span>
+                </div>
+              </label>
+
+              <label class="checkbox-item">
+                <input type="checkbox" id="sim-chk-funding">
+                <div class="checkbox-text">
+                  <strong>Milestone-Linked Tranche Funding &amp; Escrow Account</strong>
+                  <span>Enforces expenditure tranches against physical PERT milestones, preventing budget exhaustion anomalies.</span>
+                </div>
+              </label>
+            </div>
+
+            <button type="submit" class="gov-btn gov-btn-primary" style="width: 100%; justify-content: center; padding: 10px;">
+              🔄 Run Intervention Simulation &amp; Compare Delta
+            </button>
+          </form>
+        </div>
+
+        <!-- Simulation Comparison Outcome -->
+        <div class="portal-card">
+          <div class="portal-card-header">
+            <h3>Intervention Impact Assessment</h3>
+            <span class="tag-badge tag-derived">Before vs After</span>
+          </div>
+
+          <div id="sim-comparison-wrapper">
+            <div class="comparison-grid">
+              <div class="comp-card">
+                <div class="comp-title">Baseline Risk Profile</div>
+                <div style="font-size: 20px; font-weight: 700; color: #dc2626;" id="sim-base-prob">78.5%</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Probability of Delay</div>
+                <div style="font-size: 14px; font-weight: 700; margin-top: 8px;" id="sim-base-days">+420 Days</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="sim-base-tier">Critical Risk</div>
+              </div>
+
+              <div class="comp-card highlight">
+                <div class="comp-title" style="color: #166534;">With Interventions</div>
+                <div style="font-size: 20px; font-weight: 700; color: #16a34a;" id="sim-mod-prob">42.3%</div>
+                <div style="font-size: 11px; color: #166534;">Mitigated Probability</div>
+                <div style="font-size: 14px; font-weight: 700; margin-top: 8px; color: #166534;" id="sim-mod-days">+195 Days</div>
+                <div style="font-size: 11px; color: #166534;" id="sim-mod-tier">Medium Risk</div>
+              </div>
+            </div>
+
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px;">
+              <div style="font-size: 13px; font-weight: 700; color: #14532d; display: flex; justify-content: space-between;">
+                <span>Total Net Delay Compression:</span>
+                <span id="sim-days-saved" style="font-size: 16px; font-family: var(--font-mono);">225 Days Saved</span>
+              </div>
+              <div style="font-size: 12px; color: #166534; margin-top: 4px;">
+                Risk reduced by <strong id="sim-pts-reduced">36.2 percentage points</strong> (≈ 7.4 months faster commissioning).
+              </div>
+            </div>
+
+            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+              <strong>Strategic Decision Finding:</strong> Combining PM GatiShakti clearance acceleration with upfront RoW acquisition cuts probability of schedule breach into the moderate tier, unlocking significant capital efficiency and preventing cost overrun compound interest.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: CRITICAL ALERTS WATCHLIST ================= -->
+    <section id="tab-alerts" class="tab-pane">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>National Critical Alerts &amp; Governance Escalation Feed</h2>
+          <p>Real-time escalation triggers generated for severe timeline breaches, capital overspends, and unrevised sentinels.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <select id="alert-filter-severity" class="gov-select" style="width: auto;" onchange="loadAlerts()">
+            <option value="all">All Severities</option>
+            <option value="CRITICAL">Critical Severity Only</option>
+            <option value="HIGH">High Severity Only</option>
+            <option value="MEDIUM">Medium Severity Only</option>
+          </select>
+          <span class="tag-badge tag-derived">[ALERTS ACTIVE]</span>
+        </div>
+      </div>
+
+      <div class="alerts-list" id="alerts-container">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- ================= TAB 6: LAND & GIS DEMONSTRATION ================= -->
+    <section id="tab-land" class="tab-pane">
+      <!-- High Visibility Simulation Banner -->
+      <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #d97706; padding: 14px 18px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <div style="font-size: 20px;">⚠️</div>
+          <div>
+            <strong style="color: #92400e; font-size: 13px;">[DEMO/SIMULATION] LAYER EXPLICIT DECLARATION:</strong>
+            <p style="font-size: 12px; color: #78350f; margin-top: 2px;">
+              Per our data audit, the 5 official government CSVs <strong>do not contain native land acquisition fields</strong> (e.g. land hectares, private vs govt land, court dispute counts, affected families, GPS coordinates). To demonstrate the full SIH26017 workflow without fabricating government records, this module displays an explicitly labeled simulation layer.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- State-Level Aggregate Risk Map (Real Data from State-Wise-Report.csv) -->
+      <div class="chart-box-card" style="margin-bottom: 20px;">
+        <div class="chart-box-header">
+          <div>
+            <h3>State-Level Capital Absorption &amp; Risk Map</h3>
+            <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0 0;">Bubble size = project count. Color = expenditure absorption ratio (green ≥65%, amber 35–64%, red &lt;35%)</p>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <span class="tag-badge tag-found">[DATA FOUND IN UPLOADED FILE]</span>
+            <span class="tag-badge tag-sim" style="font-size: 9px;">Pin locations [DEMO/SIMULATION]</span>
+          </div>
+        </div>
+        <div id="leaflet-state-map" style="height: 420px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--gov-border); background: #f8fafc;"></div>
+      </div>
+
+      <!-- Simulation Summary KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Simulated Land Needed</span>
+            <span class="tag-badge tag-sim" style="font-size: 9px;">SIMULATION</span>
+          </div>
+          <div class="kpi-card-value">1,48,220 Acres</div>
+          <div class="kpi-card-subtext">Estimated Right-of-Way alignment footprint</div>
+        </div>
+
+        <div class="kpi-card success-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Avg Physical Possession</span>
+            <span class="tag-badge tag-sim" style="font-size: 9px;">SIMULATION</span>
+          </div>
+          <div class="kpi-card-value" style="color:#15803d;">61.4%</div>
+          <div class="kpi-card-subtext">Cumulative possession handed to executing agency</div>
+        </div>
+
+        <div class="kpi-card alert-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">Active Court Injunctions</span>
+            <span class="tag-badge tag-sim" style="font-size: 9px;">SIMULATION</span>
+          </div>
+          <div class="kpi-card-value" style="color:#dc2626;">2,840 Disputes</div>
+          <div class="kpi-card-subtext">Title &amp; compensation disputes in High Courts</div>
+        </div>
+
+        <div class="kpi-card warning-top">
+          <div class="kpi-card-header">
+            <span class="kpi-card-title">R&amp;R Package Allocation</span>
+            <span class="tag-badge tag-sim" style="font-size: 9px;">SIMULATION</span>
+          </div>
+          <div class="kpi-card-value" style="color:#c2410c;">₹ 11,857 Cr</div>
+          <div class="kpi-card-subtext">Rehabilitation &amp; resettlement awards</div>
+        </div>
+      </div>
+
+      <!-- Simulated Table -->
+      <div class="table-wrapper">
+        <table class="gov-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Inferred State</th>
+              <th>Simulated Coordinates</th>
+              <th>Land Required (Acres)</th>
+              <th>Possession Acquired %</th>
+              <th>Clearance Stage</th>
+              <th>Active Disputes</th>
+              <th>Affected Families</th>
+              <th>Source Tag</th>
+            </tr>
+          </thead>
+          <tbody id="sim-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= TAB 7: DATA QUALITY & INTEGRITY AUDIT ================= -->
+    <section id="tab-audit" class="tab-pane">
+      <div class="section-header-bar">
+        <div class="section-title-group">
+          <h2>Official Data Quality, Completeness &amp; Integrity Audit</h2>
+          <p>Programmatic validation findings across all 1,981 central sector projects in the official datasets.</p>
+        </div>
+        <div>
+          <span class="tag-badge tag-found">[DATA QUALITY REPORT]</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="portal-card" style="border-top: 3px solid #f59e0b;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #92400e;">1. Sentinel Value: Revised Cost = 0</h4>
+          <div style="font-size: 24px; font-weight: 800; color: #b45309; margin: 6px 0;" id="audit-sentinel-val">905 Projects (45.7%)</div>
+          <p style="font-size: 12px; color: var(--text-body); line-height: 1.6;">
+            In the raw CSV, a <code>Revised Cost</code> of 0 indicates that the project budget has <strong>not yet undergone revision</strong>. Treating this naively as numeric zero would falsely compute a -100% cost reduction. Our engine flags this with <code>NOT_YET_REVISED_COST</code>.
+          </p>
+        </div>
+
+        <div class="portal-card" style="border-top: 3px solid #dc2626;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #991b1b;">2. Missing Revised End Dates</h4>
+          <div style="font-size: 24px; font-weight: 800; color: #dc2626; margin: 6px 0;" id="audit-missing-dates-val">354 Projects (17.9%)</div>
+          <p style="font-size: 12px; color: var(--text-body); line-height: 1.6;">
+            17.9% of project rows record no revised completion date. These represent newly sanctioned works or reporting latency. They are quarantined from schedule delay regression to prevent training label corruption. Tagged with <code>MISSING_REVISED_DATE</code>.
+          </p>
+        </div>
+
+        <div class="portal-card" style="border-top: 3px solid #dc2626;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #991b1b;">3. Expenditure Exceeding Original Sanction</h4>
+          <div style="font-size: 24px; font-weight: 800; color: #dc2626; margin: 6px 0;" id="audit-overspent-val">160 Projects (8.1%)</div>
+          <p style="font-size: 12px; color: var(--text-body); line-height: 1.6;">
+            Cumulative disbursements have exceeded 100% of sanctioned outlay ahead of commissioning. This represents active capital exhaustion risk where revised approvals are lagging behind on-ground spend. Tagged with <code>EXPENDITURE_EXCEEDS_ORIGINAL</code>.
+          </p>
+        </div>
+
+        <div class="portal-card" style="border-top: 3px solid #3b82f6;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #1e40af;">4. Schedule Outlier Clipping &amp; Dates</h4>
+          <div style="font-size: 24px; font-weight: 800; color: #1e40af; margin: 6px 0;" id="audit-extreme-dates-val">Dates up to 2056</div>
+          <p style="font-size: 12px; color: var(--text-body); line-height: 1.6;">
+            Projects like <em>"Badam Coal Mining project of NTPC"</em> have original end dates extending to 2056. Calculated delays range from -10,867 to +9,131 days (~25 years). Our model winsorizes schedule targets between <code>[-365, 3650]</code> days to prevent metric distortion.
+          </p>
+        </div>
+
+        <div class="portal-card" style="border-top: 3px solid #8b5cf6;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #6b21a8;">5. Anomaly &amp; Extreme Outlier Isolation</h4>
+          <div style="font-size: 24px; font-weight: 800; color: #6b21a8; margin: 6px 0;" id="audit-outliers-val">1,189 Projects Audited</div>
+          <p style="font-size: 12px; color: var(--text-body); line-height: 1.6;">
+            Automated rules isolate extreme anomalies (cost escalation &gt;300%, milestone target dates beyond 2035, or zero-cost revisions) with explicit audit flags, ensuring transparent governance reporting without corrupting predictive models.
+          </p>
+        </div>
+      </div>
+
+      <!-- ML Model Provenance Table -->
+      <div class="portal-card">
+        <div class="portal-card-header">
+          <h3>Trained Machine Learning Model Architecture &amp; Validation Scores</h3>
+          <span class="tag-badge tag-derived">Audit Verified</span>
+        </div>
+        <table class="gov-table">
+          <thead>
+            <tr>
+              <th>Model Task</th>
+              <th>Algorithm</th>
+              <th>Validation Metric</th>
+              <th>Score</th>
+              <th>5-Fold CV Score</th>
+              <th>Leakage Safeguard</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Delay Classification</strong> (Target: <code>is_delayed</code>)</td>
+              <td>Gradient Boosting Classifier (120 trees, max_depth=4)</td>
+              <td>ROC-AUC</td>
+              <td><strong style="color: #16a34a;">0.9189</strong></td>
+              <td><strong>0.9235 (±0.015)</strong></td>
+              <td>Pre-construction features only</td>
+            </tr>
+            <tr>
+              <td><strong>Delay Regression</strong> (Target: <code>schedule_delay_days</code>)</td>
+              <td>Random Forest Regressor (150 trees, max_depth=6)</td>
+              <td>Mean Absolute Error (MAE)</td>
+              <td><strong>161.6 Days</strong></td>
+              <td><strong>R²: 0.8848</strong></td>
+              <td>Clipped outlier target [-365, 3650]</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Project Detail Modal -->
+  <div class="gov-modal-overlay hidden" id="project-modal" onclick="closeModalOnBackdrop(event)">
+    <div class="gov-modal">
+      <div class="gov-modal-header">
+        <div>
+          <span style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gov-navy-light);" id="modal-code">#000000</span>
+          <h3 id="modal-title" style="margin-top: 2px;">Project Name</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="gov-modal-body">
+        <!-- Section 1: Administrative Telemetry -->
+        <div class="gov-modal-section-title">
+          <span>Administrative Telemetry</span>
+          <span class="tag-badge tag-found">[DATA FOUND IN UPLOADED FILE]</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Sector Name</div>
+            <div class="detail-val" id="modal-sector">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Line Ministry</div>
+            <div class="detail-val" id="modal-ministry">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Inferred State</div>
+            <div class="detail-val" id="modal-state">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Original Target Date</div>
+            <div class="detail-val" id="modal-orig-date">-</div>
+          </div>
+        </div>
+
+        <!-- Section 2: Capital Outlay & Timeline -->
+        <div class="gov-modal-section-title">
+          <span>Capital Expenditure &amp; Timeline Variance</span>
+          <span class="tag-badge tag-found">[RAW] &amp; [DERIVED]</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Original Sanction Cost</div>
+            <div class="detail-val" id="modal-orig-cost">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Revised Sanction Cost</div>
+            <div class="detail-val" id="modal-rev-cost">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Cumulative Expenditure</div>
+            <div class="detail-val" id="modal-expenditure">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Schedule Delay Status</div>
+            <div class="detail-val" id="modal-delay-status">-</div>
+          </div>
+        </div>
+
+        <!-- Section 3: AI Early Warning & SHAP -->
+        <div class="gov-modal-section-title">
+          <span>Predictive AI Risk Intelligence &amp; SHAP Drivers</span>
+          <span class="tag-badge tag-derived">[ZERO-LEAKAGE MODEL]</span>
+        </div>
+        <div class="detail-grid" style="margin-bottom: 12px;">
+          <div class="detail-item">
+            <div class="detail-label">Assigned Risk Tier</div>
+            <div class="detail-val" id="modal-ai-tier">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Delay Probability</div>
+            <div class="detail-val" id="modal-ai-prob">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Expected Schedule Delay</div>
+            <div class="detail-val" id="modal-ai-delay">-</div>
+          </div>
+        </div>
+
+        <div class="shap-box" style="margin-bottom: 14px;">
+          <div class="shap-header">
+            <span>SHAP Feature Attribution (Why this project is at risk):</span>
+          </div>
+          <div id="modal-shap-list"></div>
+        </div>
+
+        <div class="recommendations-box" style="margin-bottom: 14px;">
+          <div style="font-size: 12px; font-weight: 700; color: #166534; margin-bottom: 8px;">
+            Targeted Institutional Mitigations:
+          </div>
+          <div id="modal-recs-list"></div>
+        </div>
+
+        <!-- Section 4: Land & GIS Demo Attributes -->
+        <div class="gov-modal-section-title">
+          <span>Simulated Land &amp; Spatial Telemetry</span>
+          <span class="tag-badge tag-sim">[DEMO/SIMULATION]</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Land Required</div>
+            <div class="detail-val" id="modal-sim-land">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Possession Status</div>
+            <div class="detail-val" id="modal-sim-possession">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Clearance Stage</div>
+            <div class="detail-val" id="modal-sim-clearance">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Active Legal Disputes</div>
+            <div class="detail-val" id="modal-sim-disputes">-</div>
+          </div>
+        </div>
+        <!-- Section 5: Historical Snapshots & Temporal Progression (Phase 4 & 15) -->
+        <div class="gov-modal-section-title">
+          <span>Official Snapshot Versions &amp; Risk Escalation History</span>
+          <span class="tag-badge tag-found">[SOURCE — MoSPI PAIMANA]</span>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 5px; text-transform: uppercase;">
+            Historical Project Telemetry Across Snapshots:
+          </div>
+          <div id="modal-history-table-wrapper" style="overflow-x: auto;">
+            <table class="history-table" id="modal-history-table">
+              <thead>
+                <tr>
+                  <th>Snapshot</th>
+                  <th>Date</th>
+                  <th>Original Cost</th>
+                  <th>Revised Cost</th>
+                  <th>Expenditure</th>
+                  <th>Schedule Delay</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="modal-history-tbody">
+                <tr><td colspan="7" style="text-align: center; color: #94a3b8;">Loading historical records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 5px; text-transform: uppercase;">
+            Temporal Risk Escalation Trajectory (Phase 16):
+          </div>
+          <div id="modal-risk-history-wrapper" style="overflow-x: auto;">
+            <table class="history-table" id="modal-risk-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Risk Tier</th>
+                  <th>Delay Probability</th>
+                  <th>Model Version</th>
+                  <th>Provenance</th>
+                </tr>
+              </thead>
+              <tbody id="modal-risk-tbody">
+                <tr><td colspan="5" style="text-align: center; color: #94a3b8;">Loading risk trajectory...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PHASE 10: DATA UPDATE CENTER MODAL ================= -->
+  <div id="data-update-center-modal" class="gov-modal-backdrop" style="display: none;">
+    <div class="gov-modal-dialog gov-modal-wide">
+      <div class="gov-modal-header">
+        <div class="gov-modal-title">
+          🏛️ MoSPI PAIMANA Data Update &amp; Governance Center
+          <span class="sih-badge" style="background: rgba(255,255,255,0.25); color: #ffffff;">Continuous Ingestion Architecture</span>
+        </div>
+        <button class="gov-modal-close" onclick="closeDataUpdateCenter()">&times;</button>
+      </div>
+      <div class="gov-modal-body">
+        <!-- Overview Telemetry -->
+        <div class="duc-grid">
+          <div class="duc-card">
+            <div class="duc-card-title">Active Registry Source</div>
+            <div class="duc-card-val" id="duc-source-name">MoSPI PAIMANA</div>
+            <div class="duc-card-sub" id="duc-source-status">OFFICIAL_GOVERNMENT (Available)</div>
+          </div>
+          <div class="duc-card">
+            <div class="duc-card-title">Registered Snapshots</div>
+            <div class="duc-card-val" id="duc-snapshot-count">2 Snapshots</div>
+            <div class="duc-card-sub" id="duc-latest-label">Latest: May 2026</div>
+          </div>
+          <div class="duc-card">
+            <div class="duc-card-title">Change Detection (May vs Apr)</div>
+            <div class="duc-card-val" id="duc-change-metric">+6 New / 850 Upd</div>
+            <div class="duc-card-sub" id="duc-change-sub">1,125 Unchanged / 0 Removed</div>
+          </div>
+          <div class="duc-card">
+            <div class="duc-card-title">Data Quality Gate</div>
+            <div class="duc-card-val" style="color: #16a34a;" id="duc-dq-status">VALIDATED</div>
+            <div class="duc-card-sub" id="duc-dq-sub">0% Quarantine / Zero-Leakage</div>
+          </div>
+        </div>
+
+        <!-- Section: Data Sources Registry -->
+        <div class="gov-modal-section-title">
+          <span>Official Government Data Sources Registry (Phase 1)</span>
+          <span class="tag-badge tag-found">[SOURCE — MoSPI PAIMANA]</span>
+        </div>
+        <div style="overflow-x: auto; margin-bottom: 16px;">
+          <table class="history-table" id="duc-sources-table">
+            <thead>
+              <tr>
+                <th>Source ID</th>
+                <th>Organization</th>
+                <th>Access Method</th>
+                <th>Frequency</th>
+                <th>Status</th>
+                <th>Provenance</th>
+              </tr>
+            </thead>
+            <tbody id="duc-sources-tbody">
+              <tr><td colspan="6" style="text-align: center;">Loading data sources...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section: Historical Snapshots Catalog -->
+        <div class="gov-modal-section-title">
+          <span>Historical Government Snapshots Catalog (Phase 3)</span>
+          <span class="tag-badge tag-found">Tamper-Evident SHA-256</span>
+        </div>
+        <div style="overflow-x: auto; margin-bottom: 16px;">
+          <table class="history-table" id="duc-snapshots-table">
+            <thead>
+              <tr>
+                <th>Snapshot ID</th>
+                <th>Label</th>
+                <th>Snapshot Date</th>
+                <th>Monitored Projects</th>
+                <th>Delayed Count</th>
+                <th>Checksum</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="duc-snapshots-tbody">
+              <tr><td colspan="7" style="text-align: center;">Loading snapshots...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section: Secure Snapshot Ingestion Interface (Phase 11 & 23) -->
+        <div class="gov-modal-section-title">
+          <span>Administrative Ingestion Gate (Phase 11 &amp; 23)</span>
+          <span class="tag-badge tag-derived">RBAC Protected (ADMIN / OFFICER)</span>
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+          <p style="font-size: 11.5px; color: #475569; margin: 0 0 10px 0;">
+            Upload an official MoSPI PAIMANA monthly CSV/XLSX export. Every record passes through the <strong>Data Quality Gate</strong> (schema verification, sentinel cost detection, date plausibility, and CSV formula injection neutralization) before entering the production database.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: flex-end;">
+            <div>
+              <label style="font-size: 10.5px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">Snapshot ID</label>
+              <input type="text" id="ingest-snap-id" placeholder="e.g. paimana_2026_06" style="width: 100%; padding: 6px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">Snapshot Label</label>
+              <input type="text" id="ingest-snap-label" placeholder="e.g. PAIMANA June 2026" style="width: 100%; padding: 6px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">Snapshot Date</label>
+              <input type="date" id="ingest-snap-date" value="2026-06-30" style="width: 100%; padding: 6px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 4px;">
+            </div>
+            <div>
+              <button class="gov-btn gov-btn-primary" onclick="triggerFileUpload()" id="btn-upload-snapshot" style="white-space: nowrap;">
+                📁 Ingest Official CSV
+              </button>
+              <input type="file" id="ingest-file-input" accept=".csv,.xlsx" style="display: none;" onchange="handleSnapshotFileSelect(event)">
+            </div>
+          </div>
+          <div id="ingest-feedback" style="margin-top: 10px; font-size: 11px; display: none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Government Portal Official Footer -->
+  <footer class="gov-footer">
+    <div class="gov-footer-inner">
+      <div>
+        <strong>Ministry of Statistics and Programme Implementation (MoSPI)</strong><br>
+        Infrastructure and Project Monitoring Division (IPMD) | Government of India
+      </div>
+      <div>
+        Platform Version: <strong>2.0.0 Institutional Build</strong> | Strictly Adhering to Zero-Leakage ML Protocols
+      </div>
+      <div>
+        <span>Designed for Smart India Hackathon (SIH26017)</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- System Toast Notifications -->
+  <div id="gov-toast" style="position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: none; padding: 12px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: opacity 0.3s ease; color: white;"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
