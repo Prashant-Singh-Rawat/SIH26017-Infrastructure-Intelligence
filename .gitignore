@@ -20,9 +20,10 @@ venv/
 ENV/
 .pytest_cache/
 
-# Data and Artifacts (Local SQLite DB — not needed in production)
+# Data and Artifacts
 *.log
 *.db
+!data/infra_governance.db
 .coverage
 htmlcov/
 
@@ -33,3 +34,6 @@ htmlcov/
 .vscode/
 .idea/
 *.swp
+
+.vercel
+.env*

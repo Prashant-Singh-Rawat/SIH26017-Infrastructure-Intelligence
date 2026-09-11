@@ -1,16 +1,27 @@
 import os
 import json
+import time
+import shutil
 import sqlite3
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from contextlib import contextmanager
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "data", "infra_governance.db")
+BUNDLED_DB = os.path.join(BASE_DIR, "data", "infra_governance.db")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 # Check if PostgreSQL connection is configured
 IS_POSTGRES = DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://")
+
+# In serverless environments (Vercel Lambda), the app root (/var/task) is read-only.
+# We use /tmp/infra_governance.db as the SQLite database destination where reads and writes are allowed.
+IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME") or not os.access(os.path.dirname(BUNDLED_DB), os.W_OK))
+
+if IS_SERVERLESS:
+    DB_PATH = "/tmp/infra_governance.db"
+else:
+    DB_PATH = BUNDLED_DB
 
 # ---------------------------------------------------------------
 # PostgreSQL Engine — NullPool for serverless (Vercel) compatibility.
@@ -69,7 +80,18 @@ def get_db_connection():
         raw_conn.cursor = _dict_cursor
         return raw_conn
 
+    # SQLite Mode: Ensure writable directory exists
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    if IS_SERVERLESS and (not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) < 1000):
+        if os.path.exists(BUNDLED_DB):
+            try:
+                shutil.copy2(BUNDLED_DB, DB_PATH)
+                print(f"[DATABASE] Initialized serverless SQLite DB from {BUNDLED_DB} -> {DB_PATH}")
+            except Exception as e:
+                print(f"[DATABASE ERROR] Failed to copy bundled SQLite DB to /tmp: {e}")
+        else:
+            print(f"[DATABASE WARNING] Bundled DB not found at {BUNDLED_DB}.")
+
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     try:
