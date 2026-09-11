@@ -1154,7 +1154,7 @@ async function submitInterventionEGoS() {
     }
 
     const data = await res.json();
-    showToast(`Intervention Package for Project #${data.project_code} submitted to EGoS (Dossier #${data.alert_id}).`, 'success');
+    showToast(`Intervention Package submitted to EGoS (${data.tracking_id || 'Dossier #' + (data.alert_id || projectCode)}).`, 'success');
   } catch (err) {
     console.error('Error submitting EGoS intervention:', err);
     showToast('Failed to submit intervention package to EGoS.', 'error');
