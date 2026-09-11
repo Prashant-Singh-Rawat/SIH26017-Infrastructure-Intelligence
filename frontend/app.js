@@ -418,7 +418,10 @@ function renderProgressChart(progress) {
     return;
   }
 
-  const labels = progress.map(p => `${p.progress_bracket}%`);
+  const labels = progress.map(p => {
+    const bracket = String(p.progress_bracket || '');
+    return bracket.includes('%') ? bracket : `${bracket}%`;
+  });
   const counts = progress.map(p => p.project_count);
 
   if (progressChartInstance) {
@@ -727,6 +730,23 @@ function openSelectedProjectModal() {
   }
 }
 
+// Alias: selectProject is referenced via window binding
+function selectProject(p, tr) {
+  selectProjectInExplorer(p, tr);
+}
+
+// Alias: simulateFromAudit – open simulator for a given project code
+function simulateFromAudit(projectCode) {
+  if (selectedProject && selectedProject.project_code === projectCode) {
+    simulateSelectedProject();
+  } else {
+    // Switch to simulator tab with the given project code
+    switchNav('simulator');
+    runSimulation();
+    showToast(`Loading simulation for project #${projectCode}`, 'info');
+  }
+}
+
 function simulateSelectedProject() {
   if (!selectedProject) return;
   const p = selectedProject;
@@ -905,10 +925,14 @@ async function handleEvaluation(e) {
 
     const placeholder = document.getElementById('eval-placeholder');
     const output = document.getElementById('eval-output');
-    if (placeholder) placeholder.classList.add('hidden');
+    if (placeholder) {
+      placeholder.classList.add('hidden');
+      placeholder.style.display = 'none';
+    }
     if (output) {
       output.classList.remove('hidden');
-      output.style.display = 'flex';
+      output.style.setProperty('display', 'flex', 'important');
+      output.style.flexDirection = 'column';
     }
 
     const banner = document.getElementById('eval-tier-banner');
