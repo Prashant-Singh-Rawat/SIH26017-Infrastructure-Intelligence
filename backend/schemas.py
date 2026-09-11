@@ -13,18 +13,27 @@ class PredictRequest(StrictBaseModel):
     sector_name: str = Field(..., min_length=2, max_length=120, description="Infrastructure sector name")
     line_ministry: str = Field(..., min_length=2, max_length=255, description="Responsible line ministry")
     original_cost_cr: float = Field(..., gt=0.0, le=1000000.0, description="Original sanctioned outlay in Crores (INR)")
-    planned_end_year: int = Field(..., ge=2024, le=2050, description="Planned completion calendar year")
+    planned_end_year: int = Field(..., ge=2000, le=2050, description="Planned completion calendar year")
     planned_end_quarter: int = Field(2, ge=1, le=4, description="Planned completion fiscal quarter (1-4)")
 
 class SimulateRequest(StrictBaseModel):
     sector_name: str = Field(..., min_length=2, max_length=120, description="Infrastructure sector name")
     line_ministry: str = Field(..., min_length=2, max_length=255, description="Responsible line ministry")
     original_cost_cr: float = Field(..., gt=0.0, le=1000000.0, description="Original sanctioned outlay in Crores (INR)")
-    planned_end_year: int = Field(..., ge=2024, le=2050, description="Planned completion calendar year")
+    planned_end_year: int = Field(..., ge=2000, le=2050, description="Planned completion calendar year")
     planned_end_quarter: int = Field(2, ge=1, le=4, description="Planned completion fiscal quarter (1-4)")
     fast_track_clearance: bool = Field(False, description="Apply single-window fast track clearance")
     advance_land_row: bool = Field(False, description="Apply advance 100% RoW possession")
     milestone_funding: bool = Field(False, description="Apply milestone tranche disbursement")
+
+class EGoSDispatchPayload(StrictBaseModel):
+    project_code: Optional[int] = Field(None, description="Project code")
+    project_name: Optional[str] = Field(None, max_length=255, description="Project title")
+    sector_name: Optional[str] = Field(None, max_length=120, description="Sector name")
+    line_ministry: Optional[str] = Field(None, max_length=255, description="Line ministry")
+    days_saved: int = Field(default=0, ge=0, description="Days recovered")
+    cost_averted_cr: float = Field(default=0.0, ge=0.0, description="Cost escalation averted in Crores")
+    selected_knobs: Optional[List[str]] = Field(default_factory=list, description="Selected policy intervention knobs")
 
 class AlertAcknowledgeRequest(StrictBaseModel):
     notes: Optional[str] = Field(None, max_length=500, description="Officer audit or mitigation notes")

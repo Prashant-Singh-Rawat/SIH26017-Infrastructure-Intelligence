@@ -624,15 +624,16 @@ function resetExplorerFilters() {
 function setFilterQuick(type) {
   const statusSelect = document.getElementById('filter-status');
   if (type === 'delayed') {
-    if (statusSelect) statusSelect.value = 'DELAYED';
+    if (statusSelect) statusSelect.value = 'delayed';
   } else if (type === 'unrevised') {
-    if (statusSelect) statusSelect.value = '';
+    if (statusSelect) statusSelect.value = 'unrevised';
   } else if (type === 'overrun') {
-    if (statusSelect) statusSelect.value = '';
+    if (statusSelect) statusSelect.value = 'overrun';
   }
   currentPage = 1;
   loadProjects();
 }
+window.setFilterQuick = setFilterQuick;
 
 function debounceSearch() {
   clearTimeout(searchTimeout);
@@ -929,8 +930,72 @@ function clearSimulatorPlaceholders() {
   runSimulation();
 }
 
-function submitInterventionEGoS() {
-  showToast('Intervention Package submitted to Empowered Group of Secretaries (EGoS) portal.', 'success');
+async function submitInterventionEGoS() {
+  try {
+    showToast('Submitting Intervention Package to EGoS Portal...', 'info');
+
+    const codeLabel = document.getElementById('sim-project-code-label');
+    const nameLabel = document.getElementById('sim-project-name-label');
+    const sectorEl = document.getElementById('sim-sector');
+    const ministryEl = document.getElementById('sim-ministry');
+    const costAvertedEl = document.getElementById('sim-cost-averted-val');
+    const daysSavedEl = document.getElementById('sim-days-saved');
+
+    let projectCode = 1001;
+    if (codeLabel && codeLabel.textContent) {
+      const match = codeLabel.textContent.match(/\d+/);
+      if (match) projectCode = parseInt(match[0], 10);
+    }
+
+    const selectedKnobs = [];
+    if (document.getElementById('sim-chk-land')?.checked) selectedKnobs.push('Advance RoW Possession');
+    if (document.getElementById('sim-chk-funding')?.checked) selectedKnobs.push('Milestone Liquidity Disbursement');
+    if (document.getElementById('sim-chk-clearance')?.checked) selectedKnobs.push('Single Window Environmental Clearance');
+    if (document.getElementById('sim-chk-legal')?.checked) selectedKnobs.push('Special Court Arbitrage');
+    if (document.getElementById('sim-chk-shifts')?.checked) selectedKnobs.push('Double-Shift 24x7 Working');
+
+    let daysSaved = 135;
+    if (daysSavedEl && daysSavedEl.textContent) {
+      const match = daysSavedEl.textContent.match(/\d+/);
+      if (match) daysSaved = parseInt(match[0], 10);
+    }
+
+    let costAvertedCr = 68.4;
+    if (costAvertedEl && costAvertedEl.textContent) {
+      const match = costAvertedEl.textContent.match(/[\d.]+/);
+      if (match) costAvertedCr = parseFloat(match[0]);
+    }
+
+    const payload = {
+      project_code: projectCode,
+      project_name: nameLabel?.textContent || 'National Infrastructure Project',
+      sector_name: sectorEl?.value || 'Road Transport and Highways',
+      line_ministry: ministryEl?.value || 'MoRTH',
+      days_saved: daysSaved,
+      cost_averted_cr: costAvertedCr,
+      selected_knobs: selectedKnobs
+    };
+
+    const res = await authFetch('/api/v1/simulations/dispatch-egos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      if (res.status === 403) {
+        showToast(`Permission Denied: Role '${currentRole}' cannot submit EGoS interventions.`, 'error');
+        return;
+      }
+      throw new Error(`Server returned HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    showToast(`Intervention Package for Project #${data.project_code} submitted to EGoS (Dossier #${data.alert_id}).`, 'success');
+  } catch (err) {
+    console.error('Error submitting EGoS intervention:', err);
+    showToast('Failed to submit intervention package to EGoS.', 'error');
+  }
 }
 
 // =========================================================================
@@ -941,12 +1006,12 @@ async function loadAlerts() {
   const sev = (severitySelect && severitySelect.value) ? severitySelect.value : 'all';
 
   try {
-    const res = await authFetch(`/api/v1/alerts?severity=${sev}&limit=40`);
+    const res = await authFetch(`/api/v1/alerts?severity=${sev}&limit=60`);
     if (!res.ok) throw new Error('Failed to fetch alerts');
     const data = await res.json();
     cachedAlerts = data.alerts || [];
 
-    renderAlertCards(cachedAlerts);
+    filterAndSortAlerts();
   } catch (err) {
     console.error('Error loading alerts:', err);
     const container = document.getElementById('alerts-container');
@@ -1029,28 +1094,164 @@ function renderAlertCards(alerts) {
 }
 
 function filterAlerts() {
-  loadAlerts();
+  filterAndSortAlerts();
 }
 
 function setAlertCategory(cat) {
   activeAlertCategory = (activeAlertCategory === cat) ? null : cat;
-  if (!activeAlertCategory) {
-    renderAlertCards(cachedAlerts);
-    return;
+  filterAndSortAlerts();
+}
+
+function filterAndSortAlerts() {
+  const severitySelect = document.getElementById('alert-filter-severity');
+  const sortSelect = document.getElementById('alert-sort');
+  const searchInput = document.getElementById('alert-search');
+
+  const sev = (severitySelect && severitySelect.value) ? severitySelect.value.trim().toUpperCase() : '';
+  const sortBy = (sortSelect && sortSelect.value) ? sortSelect.value : 'delay';
+  const query = (searchInput && searchInput.value) ? searchInput.value.trim().toLowerCase() : '';
+
+  let filtered = [...cachedAlerts];
+
+  // 1. Severity filter
+  if (sev && sev !== 'ALL') {
+    filtered = filtered.filter(a => (a.alert_severity || '').toUpperCase() === sev);
   }
-  const filtered = cachedAlerts.filter(a => {
-    const text = `${a.alert_title} ${a.alert_description} ${a.project_name}`.toLowerCase();
-    return text.includes(cat);
+
+  // 2. Category filter
+  if (activeAlertCategory) {
+    filtered = filtered.filter(a => {
+      const text = `${a.alert_title || ''} ${a.alert_description || ''} ${a.project_name || ''} ${a.alert_category || ''}`.toLowerCase();
+      return text.includes(activeAlertCategory);
+    });
+  }
+
+  // 3. Search query filter
+  if (query) {
+    filtered = filtered.filter(a => {
+      const text = `${a.project_code || ''} ${a.project_name || ''} ${a.sector_name || ''} ${a.alert_title || ''} ${a.alert_description || ''}`.toLowerCase();
+      return text.includes(query);
+    });
+  }
+
+  // 4. Sort
+  filtered.sort((a, b) => {
+    if (sortBy === 'cost') {
+      return (b.cost_overrun_cr || 0) - (a.cost_overrun_cr || 0);
+    } else if (sortBy === 'priority') {
+      const order = { 'CRITICAL': 3, 'HIGH': 2, 'MEDIUM': 1, 'LOW': 0 };
+      const rankA = order[a.alert_severity] || 0;
+      const rankB = order[b.alert_severity] || 0;
+      return rankB - rankA;
+    } else {
+      return (b.cost_overrun_cr || 0) - (a.cost_overrun_cr || 0);
+    }
   });
+
   renderAlertCards(filtered);
 }
 
-function exportAlertsLog() {
-  showToast('Exporting official Critical Exception Log (CSV/PDF)...', 'info');
+async function exportAlertsLog() {
+  try {
+    showToast('Generating official Critical Exception Log (CSV)...', 'info');
+    let alertsToExport = cachedAlerts;
+    if (!alertsToExport || alertsToExport.length === 0) {
+      const res = await authFetch('/api/v1/alerts?limit=100');
+      if (res.ok) {
+        const data = await res.json();
+        alertsToExport = data.alerts || [];
+      }
+    }
+
+    if (!alertsToExport || alertsToExport.length === 0) {
+      showToast('No alerts available to export.', 'info');
+      return;
+    }
+
+    const headers = [
+      'Alert ID',
+      'Project Code',
+      'Project Name',
+      'Sector',
+      'Severity',
+      'Category',
+      'Title',
+      'Description',
+      'Cost Overrun (Cr)',
+      'Escalation Authority',
+      'Assigned Authority',
+      'Status',
+      'Created At'
+    ];
+
+    const escapeCsv = (str) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const csvRows = [headers.join(',')];
+    alertsToExport.forEach(a => {
+      csvRows.push([
+        escapeCsv(a.alert_id),
+        escapeCsv(a.project_code),
+        escapeCsv(a.project_name),
+        escapeCsv(a.sector_name || ''),
+        escapeCsv(a.alert_severity),
+        escapeCsv(a.alert_category),
+        escapeCsv(a.alert_title),
+        escapeCsv(a.alert_description),
+        escapeCsv(a.cost_overrun_cr || 0),
+        escapeCsv(a.escalation_authority || ''),
+        escapeCsv(a.assigned_authority || ''),
+        escapeCsv(a.status || 'ACTIVE'),
+        escapeCsv(a.created_at || new Date().toISOString())
+      ].join(','));
+    });
+
+    const csvContent = '\uFEFF' + csvRows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nipews_critical_alerts_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported ${alertsToExport.length} alert records to CSV.`, 'success');
+  } catch (err) {
+    console.error('Failed to export alerts CSV:', err);
+    showToast('Export failed. Please try again.', 'error');
+  }
 }
 
-function batchDispatchEGoS() {
-  showToast('Dispatched 12 Critical Exception Dossiers to EGoS Agenda.', 'success');
+async function batchDispatchEGoS() {
+  try {
+    showToast('Dispatching critical exceptions to EGoS Agenda...', 'info');
+    const res = await authFetch('/api/v1/alerts/batch-dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      if (res.status === 403) {
+        showToast(`Permission Denied: Role '${currentRole}' cannot dispatch EGoS packages.`, 'error');
+        return;
+      }
+      throw new Error(`Dispatch failed with HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.status === 'NOOP') {
+      showToast('No active critical/high exceptions pending EGoS dispatch.', 'info');
+    } else {
+      showToast(`Dispatched ${data.dispatched_count} Critical Exception Dossiers to EGoS Agenda.`, 'success');
+      await loadAlerts();
+    }
+  } catch (err) {
+    console.error('Error dispatching EGoS batch:', err);
+    showToast('Failed to dispatch EGoS batch. Please check server status.', 'error');
+  }
 }
 
 async function acknowledgeAlert(alertId) {
@@ -1504,6 +1705,25 @@ async function handleSnapshotFileSelect(event) {
   reader.readAsText(file);
 }
 
+function closeProjectModal() {
+  closeModal();
+}
+
+// Global Modal Dismiss Listeners (Escape key and outside backdrop click)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeModal();
+    closeDataUpdateCenter();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('gov-modal')) {
+    closeModal();
+    closeDataUpdateCenter();
+  }
+});
+
 // Explicit global window bindings for all UI interactive handlers
 window.switchNav = switchNav;
 window.adjustFontSize = adjustFontSize;
@@ -1514,9 +1734,13 @@ window.triggerFileUpload = triggerFileUpload;
 window.handleSnapshotFileSelect = handleSnapshotFileSelect;
 window.loadSummaryData = loadSummaryData;
 window.resetExplorerFilters = resetExplorerFilters;
+window.setFilterQuick = setFilterQuick;
 window.changePage = changePage;
 window.selectProject = selectProject;
+window.openSelectedProjectModal = openSelectedProjectModal;
+window.simulateSelectedProject = simulateSelectedProject;
 window.openProjectModal = openProjectModal;
+window.closeModal = closeModal;
 window.closeProjectModal = closeProjectModal;
 window.simulateFromAudit = simulateFromAudit;
 window.runEarlyWarningEvaluation = runEarlyWarningEvaluation;
@@ -1525,6 +1749,7 @@ window.resetSimulatorKnobs = resetSimulatorKnobs;
 window.submitInterventionEGoS = submitInterventionEGoS;
 window.loadAlerts = loadAlerts;
 window.filterAlerts = filterAlerts;
+window.filterAndSortAlerts = filterAndSortAlerts;
 window.setAlertCategory = setAlertCategory;
 window.acknowledgeAlert = acknowledgeAlert;
 window.exportAlertsLog = exportAlertsLog;

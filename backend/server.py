@@ -43,6 +43,7 @@ from backend.schemas import (
     AlertAcknowledgeRequest,
     CreateAlertRequest,
     SnapshotIngestPayload,
+    EGoSDispatchPayload,
     ErrorResponse
 )
 from backend.security.auth import (
@@ -378,15 +379,19 @@ def get_projects_v1(
     sector: Optional[str] = Query(None, max_length=120),
     ministry: Optional[str] = Query(None, max_length=255),
     state: Optional[str] = Query(None, max_length=120),
-    status: Optional[str] = Query("all", pattern="^(all|delayed|on_schedule|not_revised)$"),
-    quality: Optional[str] = Query("all", pattern="^(all|clean|anomalies)$"),
+    status: Optional[str] = Query(None, max_length=50),
+    quality: Optional[str] = Query(None, max_length=50),
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100)
+    page_size: int = Query(25, ge=1, le=100),
+    limit: Optional[int] = Query(None, ge=1, le=100)
 ):
     """
     Server-side paginated project explorer with multi-criteria filtering.
     Maximum page size constrained to 100 records.
     """
+    if limit is not None:
+        page_size = limit
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -413,17 +418,23 @@ def get_projects_v1(
         conditions.append(adapt_query("s.inferred_state = ?"))
         params.append(state)
         
-    if status == "delayed":
-        conditions.append("p.is_delayed = 1")
-    elif status == "on_schedule":
-        conditions.append("p.is_delayed = 0 AND p.revised_date_is_missing = 0")
-    elif status == "not_revised":
-        conditions.append("p.revised_date_is_missing = 1")
+    if status and status != "all":
+        st = status.strip().lower()
+        if st in ("delayed", "is_delayed"):
+            conditions.append("p.is_delayed = 1")
+        elif st in ("on_schedule", "onschedule", "on-schedule"):
+            conditions.append("p.is_delayed = 0 AND p.revised_date_is_missing = 0")
+        elif st in ("not_revised", "unrevised", "pending"):
+            conditions.append("(p.revised_cost_is_set = 0 OR p.revised_date_is_missing = 1)")
+        elif st in ("overrun", "cost_overrun", "cost_overruns"):
+            conditions.append("p.cost_overrun_pct > 20")
         
-    if quality == "clean":
-        conditions.append("p.data_quality_flags = 'CLEAN'")
-    elif quality == "anomalies":
-        conditions.append("p.data_quality_flags != 'CLEAN'")
+    if quality and quality != "all":
+        q_clean = quality.strip().lower()
+        if q_clean == "clean":
+            conditions.append("p.data_quality_flags = 'CLEAN'")
+        elif q_clean == "anomalies":
+            conditions.append("p.data_quality_flags != 'CLEAN'")
         
     where_clause = " WHERE " + " AND ".join(conditions)
     
@@ -696,6 +707,8 @@ def get_alerts_v1(
         p.sector_name,
         p.line_ministry,
         p.original_cost_cr,
+        p.revised_cost_cr,
+        p.cost_overrun_pct,
         p.schedule_delay_days
     FROM project_alerts a
     JOIN projects p ON a.project_code = p.project_code
@@ -715,6 +728,9 @@ def get_alerts_v1(
     formatted_alerts = []
     for a in raw_alerts:
         item = dict(a)
+        orig = item.get("original_cost_cr") or 0.0
+        revised = item.get("revised_cost_cr") or orig
+        item["cost_overrun_cr"] = round(max(0.0, revised - orig), 2)
         # Ensure Phase 9 explicit field aliases
         item["severity"] = item.get("alert_severity")
         item["reason"] = item.get("alert_description")
@@ -866,6 +882,121 @@ def acknowledge_alert_v1(
         "acknowledged_by": officer.email,
         "acknowledged_at": now_str,
         "resolution_timestamp": res_ts
+    }
+
+@app.post(
+    "/api/v1/alerts/batch-dispatch",
+    tags=["Escalation Alerts"]
+)
+def batch_dispatch_alerts_v1(
+    request: Request,
+    officer: UserClaims = Depends(require_role(["OFFICER", "ADMIN"]))
+):
+    """
+    Batch dispatches active critical alerts to the Empowered Group of Secretaries (EGoS).
+    Persists status update and registers immutable audit log event.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(adapt_query("""
+    SELECT alert_id, project_code, alert_severity 
+    FROM project_alerts 
+    WHERE status = 'ACTIVE' AND alert_severity IN ('CRITICAL', 'HIGH')
+    ORDER BY alert_id DESC
+    LIMIT 25;
+    """))
+    rows = cursor.fetchall()
+    if not rows:
+        conn.close()
+        return {"status": "NOOP", "dispatched_count": 0, "message": "No active critical alerts pending dispatch."}
+
+    alert_ids = [dict(r)["alert_id"] for r in rows]
+    now_str = datetime_iso()
+    
+    for aid in alert_ids:
+        cursor.execute(adapt_query("""
+        UPDATE project_alerts 
+        SET status = 'ACKNOWLEDGED', 
+            acknowledged_at = ?, 
+            acknowledged_by = ?, 
+            acknowledgement_notes = ? 
+        WHERE alert_id = ?;
+        """), (now_str, officer.email, "Batch dispatched to Empowered Group of Secretaries (EGoS) Agenda", aid))
+    conn.commit()
+    conn.close()
+
+    log_audit_event(
+        request,
+        action="EGOS_BATCH_DISPATCH",
+        resource_type="alerts",
+        user=officer,
+        metadata={"dispatched_alert_ids": alert_ids, "count": len(alert_ids)}
+    )
+
+    return {
+        "status": "DISPATCHED",
+        "dispatched_count": len(alert_ids),
+        "dispatched_alert_ids": alert_ids,
+        "message": f"Successfully dispatched {len(alert_ids)} critical exceptions to EGoS Agenda."
+    }
+
+@app.post(
+    "/api/v1/simulations/dispatch-egos",
+    tags=["Decision Support"]
+)
+def dispatch_simulation_egos_v1(
+    payload: EGoSDispatchPayload,
+    request: Request,
+    officer: UserClaims = Depends(require_role(["OFFICER", "ADMIN"]))
+):
+    """
+    Submits a simulated policy intervention package to Empowered Group of Secretaries (EGoS).
+    Persists an escalation alert record and immutable audit log.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    p_code = payload.project_code or 1001
+    p_name = payload.project_name or "National Infrastructure Corridor"
+    knobs_desc = ", ".join(payload.selected_knobs) if payload.selected_knobs else "Section 3E/3F Possession, Mobilization Liquidity"
+    title = f"EGoS Policy Intervention: #{p_code} ({payload.days_saved}d recovery)"
+    desc = f"Intervention package for {p_name} ({payload.sector_name or 'Infrastructure'}). Mitigations: {knobs_desc}. Projected recovery: {payload.days_saved} days, Cost escalation averted: ₹{payload.cost_averted_cr} Cr."
+    
+    if IS_POSTGRES:
+        cursor.execute(adapt_query("""
+        INSERT INTO project_alerts (
+            project_code, alert_severity, alert_category, alert_title, alert_description,
+            escalation_authority, assigned_authority, status
+        ) VALUES (?, 'HIGH', 'POLICY_INTERVENTION', ?, ?, 'Empowered Group of Secretaries (EGoS)', 'Cabinet Secretariat', 'ACTIVE')
+        RETURNING alert_id;
+        """), (p_code, title, desc))
+        new_id = cursor.fetchone()["alert_id"]
+    else:
+        cursor.execute(adapt_query("""
+        INSERT INTO project_alerts (
+            project_code, alert_severity, alert_category, alert_title, alert_description,
+            escalation_authority, assigned_authority, status
+        ) VALUES (?, 'HIGH', 'POLICY_INTERVENTION', ?, ?, 'Empowered Group of Secretaries (EGoS)', 'Cabinet Secretariat', 'ACTIVE');
+        """), (p_code, title, desc))
+        new_id = cursor.lastrowid
+        
+    conn.commit()
+    conn.close()
+    
+    log_audit_event(
+        request,
+        action="EGOS_POLICY_SUBMITTED",
+        resource_type="policy_intervention",
+        resource_id=str(new_id),
+        user=officer,
+        metadata={"project_code": p_code, "days_saved": payload.days_saved, "cost_averted_cr": payload.cost_averted_cr}
+    )
+    
+    return {
+        "status": "SUBMITTED",
+        "tracking_id": f"EGOS-2026-{new_id:04d}",
+        "alert_id": new_id,
+        "message": f"Intervention Package submitted to EGoS Portal (Tracking #EGOS-2026-{new_id:04d})."
     }
 
 @app.get("/api/v1/data-quality", tags=["Data Governance"])

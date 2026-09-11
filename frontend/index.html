@@ -451,8 +451,10 @@
             <label class="font-label-md text-on-surface-variant">DELAY STATUS</label>
             <select id="filter-status" class="h-[36px] bg-surface border border-outline-variant rounded px-2 font-body-md text-on-surface focus:outline-none focus:border-primary">
               <option value="">All Statuses</option>
-              <option value="DELAYED">Delayed Only</option>
-              <option value="ON_SCHEDULE">On Schedule / Completed</option>
+              <option value="delayed">Delayed Only (&gt;0d)</option>
+              <option value="on_schedule">On Schedule / Completed</option>
+              <option value="unrevised">Unrevised Sentinel</option>
+              <option value="overrun">Cost Overruns (&gt;20%)</option>
             </select>
           </div>
 
@@ -1106,13 +1108,13 @@
           <div class="flex items-center gap-1.5 bg-surface px-2.5 py-1 rounded border border-outline-variant text-xs">
             <span class="material-symbols-outlined text-[16px] text-on-surface-variant">sort</span>
             <span class="text-on-surface-variant">Sort:</span>
-            <select class="bg-transparent font-semibold text-primary focus:outline-none">
-              <option>Highest Delay Horizon</option>
-              <option>Outlay at Risk (Descending)</option>
-              <option>Cabinet Priority Level</option>
+            <select id="alert-sort" onchange="filterAndSortAlerts()" class="bg-transparent font-semibold text-primary focus:outline-none">
+              <option value="delay">Highest Delay Horizon</option>
+              <option value="cost">Outlay at Risk (Descending)</option>
+              <option value="priority">Cabinet Priority Level</option>
             </select>
           </div>
-          <input type="text" placeholder="Search project ID or sector..." class="bg-surface pl-3 pr-2 py-1 text-body-sm border border-outline-variant rounded focus:border-primary focus:outline-none w-48 sm:w-64"/>
+          <input id="alert-search" oninput="filterAndSortAlerts()" type="text" placeholder="Search project ID or sector..." class="bg-surface pl-3 pr-2 py-1 text-body-sm border border-outline-variant rounded focus:border-primary focus:outline-none w-48 sm:w-64"/>
         </div>
       </div>
 
