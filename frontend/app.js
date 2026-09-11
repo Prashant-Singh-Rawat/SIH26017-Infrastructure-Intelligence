@@ -171,17 +171,28 @@ function switchNav(navId) {
   if (activeBtn) activeBtn.classList.add('active');
   if (activePane) activePane.classList.add('active');
 
+  // Scroll to top of viewport on navigation
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
   if (targetId === 'overview') {
-    if (sectorChartInstance) sectorChartInstance.resize();
-    if (progressChartInstance) progressChartInstance.resize();
-    if (stateChartInstance) stateChartInstance.resize();
+    setTimeout(() => {
+      if (sectorChartInstance) sectorChartInstance.resize();
+      if (progressChartInstance) progressChartInstance.resize();
+      if (stateChartInstance) stateChartInstance.resize();
+    }, 50);
   }
   
   // Initialize Leaflet map when GIS/Land tab is opened
   if (targetId === 'land') {
     setTimeout(() => initLeafletMap(), 150);
   }
+
+  // If entering simulator without active values, run initial simulation
+  if (targetId === 'simulator') {
+    runSimulation();
+  }
 }
+window.switchNav = switchNav;
 
 // =========================================================================
 // 1. Summary Data & High-Contrast Institutional Charts
@@ -1492,3 +1503,29 @@ async function handleSnapshotFileSelect(event) {
   };
   reader.readAsText(file);
 }
+
+// Explicit global window bindings for all UI interactive handlers
+window.switchNav = switchNav;
+window.adjustFontSize = adjustFontSize;
+window.switchAuthRole = switchAuthRole;
+window.openDataUpdateCenter = openDataUpdateCenter;
+window.closeDataUpdateCenter = closeDataUpdateCenter;
+window.triggerFileUpload = triggerFileUpload;
+window.handleSnapshotFileSelect = handleSnapshotFileSelect;
+window.loadSummaryData = loadSummaryData;
+window.resetExplorerFilters = resetExplorerFilters;
+window.changePage = changePage;
+window.selectProject = selectProject;
+window.openProjectModal = openProjectModal;
+window.closeProjectModal = closeProjectModal;
+window.simulateFromAudit = simulateFromAudit;
+window.runEarlyWarningEvaluation = runEarlyWarningEvaluation;
+window.runSimulation = runSimulation;
+window.resetSimulatorKnobs = resetSimulatorKnobs;
+window.submitInterventionEGoS = submitInterventionEGoS;
+window.loadAlerts = loadAlerts;
+window.filterAlerts = filterAlerts;
+window.setAlertCategory = setAlertCategory;
+window.acknowledgeAlert = acknowledgeAlert;
+window.exportAlertsLog = exportAlertsLog;
+window.batchDispatchEGoS = batchDispatchEGoS;
