@@ -202,16 +202,44 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------
 # In-Memory Cache: Machine Learning Pipelines & Metadata
 # ---------------------------------------------------------------
-classifier = joblib.load(os.path.join(MODELS_DIR, "delay_classifier.joblib"))
-regressor  = joblib.load(os.path.join(MODELS_DIR, "delay_regressor.joblib"))
-shap_explainer  = joblib.load(os.path.join(MODELS_DIR, "shap_explainer.joblib"))
-feature_names   = joblib.load(os.path.join(MODELS_DIR, "feature_names.joblib"))
+classifier = None
+regressor = None
+shap_explainer = None
+feature_names = []
 
-with open(os.path.join(MODELS_DIR, "model_metadata.json"), "r", encoding="utf-8") as f:
-    model_metadata = json.load(f)
+try:
+    classifier = joblib.load(os.path.join(MODELS_DIR, "delay_classifier.joblib"))
+except Exception as e:
+    print(f"[ML WARNING] Could not load classifier: {e}")
 
-with open(os.path.join(PROCESSED_DIR, "cost_summary.json"), "r", encoding="utf-8") as f:
-    cost_summary = json.load(f)
+try:
+    regressor = joblib.load(os.path.join(MODELS_DIR, "delay_regressor.joblib"))
+except Exception as e:
+    print(f"[ML WARNING] Could not load regressor: {e}")
+
+try:
+    shap_explainer = joblib.load(os.path.join(MODELS_DIR, "shap_explainer.joblib"))
+except Exception as e:
+    print(f"[ML WARNING] Could not load shap_explainer: {e}")
+
+try:
+    feature_names = joblib.load(os.path.join(MODELS_DIR, "feature_names.joblib"))
+except Exception as e:
+    print(f"[ML WARNING] Could not load feature_names: {e}")
+
+model_metadata = {}
+try:
+    with open(os.path.join(MODELS_DIR, "model_metadata.json"), "r", encoding="utf-8") as f:
+        model_metadata = json.load(f)
+except Exception as e:
+    print(f"[ML WARNING] Could not load model_metadata: {e}")
+
+cost_summary = {}
+try:
+    with open(os.path.join(PROCESSED_DIR, "cost_summary.json"), "r", encoding="utf-8") as f:
+        cost_summary = json.load(f)
+except Exception as e:
+    print(f"[ML WARNING] Could not load cost_summary: {e}")
 
 # ---------------------------------------------------------------
 # 1. Observability Endpoints
