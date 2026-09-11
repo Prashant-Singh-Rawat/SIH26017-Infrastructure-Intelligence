@@ -44,6 +44,10 @@
       "dest": "frontend/$1"
     },
     {
+      "src": "/frontend/(.*)",
+      "dest": "frontend/$1"
+    },
+    {
       "src": "/(app\\.js|style\\.css)",
       "dest": "frontend/$1"
     },

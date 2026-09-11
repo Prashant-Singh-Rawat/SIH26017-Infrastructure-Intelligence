@@ -1164,6 +1164,20 @@ def serve_index():
         return FileResponse(index_file)
     return {"message": "PM-OCMS Infrastructure Intelligence Platform Backend Online."}
 
+@app.get("/app.js", include_in_schema=False)
+def serve_app_js():
+    js_file = os.path.join(FRONTEND_DIR, "app.js")
+    if os.path.exists(js_file):
+        return FileResponse(js_file, media_type="application/javascript")
+    return Response(status_code=404)
+
+@app.get("/style.css", include_in_schema=False)
+def serve_style_css():
+    css_file = os.path.join(FRONTEND_DIR, "style.css")
+    if os.path.exists(css_file):
+        return FileResponse(css_file, media_type="text/css")
+    return Response(status_code=404)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.server:app", host="127.0.0.1", port=8000, reload=True)
