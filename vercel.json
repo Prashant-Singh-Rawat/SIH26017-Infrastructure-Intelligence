@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 2,
   "builds": [
     {
@@ -39,11 +39,11 @@
       "dest": "api/index.py"
     },
     {
-      "src": "/frontend/(.*)",
+      "src": "/static/(.*)",
       "dest": "frontend/$1"
     },
     {
-      "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
+      "src": "/(app\\.js|style\\.css)",
       "dest": "frontend/$1"
     },
     {
@@ -72,10 +72,6 @@
         {
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "geolocation=(), microphone=(), camera=()"
         }
       ]
     }

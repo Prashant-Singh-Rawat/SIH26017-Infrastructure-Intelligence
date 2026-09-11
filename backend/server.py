@@ -117,6 +117,15 @@ allowed_origins = [
     "http://127.0.0.1:5500",
     "http://localhost:5500"
 ]
+
+# Auto-detect Vercel environment URLs
+vercel_url = os.getenv("VERCEL_URL", "").strip()
+if vercel_url:
+    allowed_origins.append(f"https://{vercel_url}")
+vercel_prod_url = os.getenv("VERCEL_PROJECT_PRODUCTION_URL", "").strip()
+if vercel_prod_url:
+    allowed_origins.append(f"https://{vercel_prod_url}")
+
 if cors_env:
     for o in cors_env.split(","):
         cleaned = o.strip()
@@ -128,6 +137,7 @@ if frontend_url and frontend_url != "*" and frontend_url not in allowed_origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
