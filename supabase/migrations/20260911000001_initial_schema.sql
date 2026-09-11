@@ -216,13 +216,6 @@ CREATE INDEX IF NOT EXISTS idx_alerts_project ON alerts(project_code);
 CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(alert_severity);
 CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
 
--- Relational Views for Schema Specification Compliance (Phase 2)
-CREATE OR REPLACE VIEW project_metrics AS SELECT * FROM project_snapshots;
-CREATE OR REPLACE VIEW project_alerts AS SELECT * FROM alerts;
-CREATE OR REPLACE VIEW project_recommendations AS SELECT * FROM recommendations;
-CREATE OR REPLACE VIEW project_audit_logs AS SELECT * FROM audit_logs;
-CREATE OR REPLACE VIEW model_predictions AS SELECT * FROM project_predictions;
-
 CREATE TABLE IF NOT EXISTS policy_simulations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id),
@@ -331,6 +324,13 @@ CREATE TABLE IF NOT EXISTS data_import_errors (
     raw_value TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Relational Views for Schema Specification Compliance (Phase 2)
+CREATE OR REPLACE VIEW project_metrics AS SELECT * FROM project_snapshots;
+CREATE OR REPLACE VIEW project_alerts AS SELECT * FROM alerts;
+CREATE OR REPLACE VIEW project_recommendations AS SELECT * FROM recommendations;
+CREATE OR REPLACE VIEW project_audit_logs AS SELECT * FROM audit_logs;
+CREATE OR REPLACE VIEW model_predictions AS SELECT * FROM project_predictions;
 
 -- ============================================================================
 -- 7. ROW LEVEL SECURITY (RLS) POLICIES

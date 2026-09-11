@@ -75,7 +75,16 @@ def get_db_connection():
 
         def _dict_cursor(*args, **kwargs):
             kwargs.setdefault("cursor_factory", psycopg2.extras.RealDictCursor)
-            return _orig_cursor(*args, **kwargs)
+            cur = _orig_cursor(*args, **kwargs)
+            _orig_exec = cur.execute
+
+            def _chainable_execute(sql, *exec_args, **exec_kwargs):
+                adapted = adapt_query(sql) if isinstance(sql, str) else sql
+                _orig_exec(adapted, *exec_args, **exec_kwargs)
+                return cur
+
+            cur.execute = _chainable_execute
+            return cur
 
         raw_conn.cursor = _dict_cursor
         return raw_conn
