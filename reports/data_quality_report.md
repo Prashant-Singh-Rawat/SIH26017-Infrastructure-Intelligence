@@ -1,4 +1,4 @@
-﻿# Data Quality Report -- SIH26017 Infrastructure Intelligence Platform
+# Data Quality Report -- SIH26017 Infrastructure Intelligence Platform
 Generated: 2026-09-10 | Programmatic validation of all 5 official government CSVs
 
 ## 1. File Inventory and Deduplication

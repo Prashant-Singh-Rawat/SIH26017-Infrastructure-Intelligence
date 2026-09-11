@@ -1,4 +1,4 @@
-﻿# Core Framework & ASGI Server
+# Core Framework & ASGI Server
 fastapi>=0.115.0
 uvicorn>=0.30.0
 pydantic>=2.8.0
