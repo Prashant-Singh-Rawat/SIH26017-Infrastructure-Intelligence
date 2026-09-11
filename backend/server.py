@@ -291,12 +291,27 @@ def datetime_iso():
 # 2. Authentication & RBAC Helper Endpoints
 # ---------------------------------------------------------------
 @app.post("/api/v1/auth/demo-token", tags=["Authentication"])
-def get_demo_token(role: str = Query("VIEWER", pattern="^(ADMIN|OFFICER|ANALYST|VIEWER)$")):
+def get_demo_token(role: Optional[str] = Query("VIEWER")):
     """
     Generates a signed JWT token for SIH hackathon evaluation of RBAC roles.
-    Supported roles: ADMIN, OFFICER, ANALYST, VIEWER.
+    Supported roles: ADMIN, OFFICER, ANALYST, VIEWER (with aliases like Ministry, Admin, Viewer).
     """
-    role_upper = role.upper()
+    raw_role = (role or "VIEWER").strip().upper()
+    role_alias_map = {
+        "ADMIN": "ADMIN",
+        "ADMINISTRATOR": "ADMIN",
+        "AUDITOR": "ADMIN",
+        "MINISTRY": "OFFICER",
+        "LINE MINISTRY": "OFFICER",
+        "OFFICER": "OFFICER",
+        "NODAL": "OFFICER",
+        "ANALYST": "ANALYST",
+        "ECONOMIST": "ANALYST",
+        "VIEWER": "VIEWER",
+        "PUBLIC": "VIEWER",
+        "CITIZEN": "VIEWER"
+    }
+    role_upper = role_alias_map.get(raw_role, "VIEWER")
     user_map = {
         "ADMIN": ("00000000-0000-0000-0000-000000000001", "admin.infra@gov.in", "Director General (Infrastructure Intelligence)"),
         "OFFICER": ("00000000-0000-0000-0000-000000000002", "officer.railways@gov.in", "Executive Director (Works)"),
