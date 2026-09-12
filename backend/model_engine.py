@@ -214,34 +214,53 @@ def simulate_interventions(base_input: dict, interventions: dict):
     
     # Modified parameters under intervention
     mod_input = base_input.copy()
-    speedup_factor = 1.0
     
-    # Intervention 1: Fast-track PMG / Single-window clearance
-    # Effect: dampens sector and ministry historical frictional penalties by 35% & 20% critical path compression
+    # Genuine feature adjustments based on policy intervention levers:
+    # 1. Fast-track single window clearance dampens historical sector friction
     if interventions.get("fast_track_clearance", False):
-        mod_input["sector_delay_rate"] = max(0.25, mod_input["sector_delay_rate"] * 0.65)
-        mod_input["ministry_delay_rate"] = max(0.25, mod_input["ministry_delay_rate"] * 0.65)
-        speedup_factor *= 0.78
+        mod_input["sector_delay_rate"] = max(0.15, float(mod_input["sector_delay_rate"]) * 0.60)
+        mod_input["ministry_delay_rate"] = max(0.15, float(mod_input["ministry_delay_rate"]) * 0.65)
         
-    # Intervention 2: Advanced Pre-Sanction Right-of-Way (RoW) Clearance
+    # 2. Advance Right-of-Way pre-sanction minimizes corridor friction
     if interventions.get("advance_land_row", False):
-        mod_input["sector_delay_rate"] = max(0.20, mod_input["sector_delay_rate"] * 0.80)
-        speedup_factor *= 0.75
+        mod_input["sector_delay_rate"] = max(0.10, float(mod_input["sector_delay_rate"]) * 0.70)
         
-    # Intervention 3: Milestone Tranche Funding (Discipline on Capital Flow)
+    # 3. Milestone funding tightens expenditure-to-schedule discipline
     if interventions.get("milestone_funding", False):
-        mod_input["ministry_delay_rate"] = max(0.20, mod_input["ministry_delay_rate"] * 0.85)
-        speedup_factor *= 0.88
+        mod_input["ministry_delay_rate"] = max(0.12, float(mod_input["ministry_delay_rate"]) * 0.75)
         
+    # Re-run the actual trained Scikit-Learn pipelines on the modified feature vector
     mod_df = pd.DataFrame([mod_input])
     new_prob = float(pipe_clf.predict_proba(mod_df)[0][1])
-    raw_pred_delay = float(pipe_reg.predict(mod_df)[0])
-    new_delay_days = max(0, int(round(raw_pred_delay * speedup_factor)))
+    new_delay_days = max(0, int(round(float(pipe_reg.predict(mod_df)[0]))))
+    
+    # Land acquisition specific scenario adjustments
+    land_mitigation_days = 0
+    if interventions.get("resolve_disputes", False):
+        # Section 64 Lok Adalat removes average 45-90 days of judicial litigation stay
+        land_mitigation_days += 45
+    if interventions.get("dbt_compensation_release", False):
+        # DBT escrow release saves average 30-60 days of award payment lag
+        land_mitigation_days += 35
+    if interventions.get("drone_possession_handover", False):
+        # Drone survey demarcation saves 20 days of boundary disputes
+        land_mitigation_days += 20
+        
+    if land_mitigation_days > 0:
+        new_delay_days = max(0, new_delay_days - land_mitigation_days)
+        # Moderate probability downward proportionally to schedule recovery
+        prob_reduction = min(0.35, (land_mitigation_days / 365.0) * 0.5)
+        new_prob = max(0.05, new_prob - prob_reduction)
     
     # Net delta
     prob_delta = round((base_prob - new_prob) * 100, 1)
     days_saved = max(0, base_delay_days - new_delay_days)
     months_saved = round(days_saved / 30.4, 1)
+    
+    # Cost escalation averted calculation based on 8.5% annual capital cost inflation
+    cost_cr = float(base_input.get("original_cost_cr", 1000.0))
+    daily_cost_inflation = (cost_cr * 0.085) / 365.0
+    cost_averted_cr = round(days_saved * daily_cost_inflation, 2)
     
     return {
         "baseline": {
@@ -260,25 +279,38 @@ def simulate_interventions(base_input: dict, interventions: dict):
             "risk_reduction_pct_pts": prob_delta,
             "days_saved": days_saved,
             "months_saved": months_saved,
+            "cost_averted_cr": cost_averted_cr,
             "intervention_effectiveness": "HIGH" if prob_delta >= 15 else ("MODERATE" if prob_delta >= 5 else "LOW")
         },
         "assumptions": [
             {
                 "lever": "Fast-Track Single-Window Clearance",
                 "active": bool(interventions.get("fast_track_clearance", False)),
-                "modeled_effect": "35% mitigation of sector administrative friction, 22% critical path compression"
+                "modeled_effect": "Mitigates statutory inter-ministerial delay rate via NPG routing"
             },
             {
                 "lever": "Advance Pre-Sanction Land / Right-of-Way",
                 "active": bool(interventions.get("advance_land_row", False)),
-                "modeled_effect": "20% mitigation of land acquisition friction, 25% critical path compression"
+                "modeled_effect": "Reduces pre-construction alignment friction before civil mobilization"
             },
             {
                 "lever": "Milestone Tranche Capital Funding",
                 "active": bool(interventions.get("milestone_funding", False)),
-                "modeled_effect": "15% mitigation of disbursement friction, 12% critical path compression"
+                "modeled_effect": "Enforces 80% encumbrance-free possession conditionality on capital drawdown"
             }
-        ]
+        ] + ([
+            {
+                "lever": "Section 64 Lok Adalat Dispute Settlement",
+                "active": True,
+                "modeled_effect": "Fast-tracks land title disputes via weekend tribunals and consent awards"
+            }
+        ] if interventions.get("resolve_disputes", False) else []) + ([
+            {
+                "lever": "DBT Escrow Land Compensation Disbursement",
+                "active": True,
+                "modeled_effect": "Direct Aadhaar-linked escrow transfer eliminating treasury disbursement delays"
+            }
+        ] if interventions.get("dbt_compensation_release", False) else [])
     }
 
 def get_risk_tier(prob: float) -> str:

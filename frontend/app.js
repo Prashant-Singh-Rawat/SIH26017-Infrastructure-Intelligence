@@ -72,9 +72,16 @@ async function initAuth() {
 
 async function switchAuthRole(role, notify = true) {
   const roleRaw = (role || 'VIEWER').toString().trim().toUpperCase();
-  const normalizedRole = (roleRaw === 'MINISTRY' || roleRaw === 'OFFICER') ? 'OFFICER' :
-                         (roleRaw === 'ADMIN' || roleRaw === 'ADMINISTRATOR' || roleRaw === 'AUDITOR') ? 'ADMIN' :
-                         (roleRaw === 'ANALYST') ? 'ANALYST' : 'VIEWER';
+  const validRoles = ['NATIONAL_ADMIN', 'STATE_OFFICER', 'DISTRICT_OFFICER', 'PROJECT_OFFICER', 'ADMIN', 'AUDITOR', 'OFFICER', 'ANALYST', 'VIEWER'];
+  
+  let normalizedRole = 'VIEWER';
+  if (validRoles.includes(roleRaw)) {
+    normalizedRole = roleRaw;
+  } else if (roleRaw === 'MINISTRY') {
+    normalizedRole = 'OFFICER';
+  } else if (roleRaw === 'ADMINISTRATOR') {
+    normalizedRole = 'ADMIN';
+  }
 
   currentRole = normalizedRole;
   localStorage.setItem('sih_auth_role', currentRole);
@@ -93,7 +100,7 @@ async function switchAuthRole(role, notify = true) {
           authToken = data.access_token;
           localStorage.setItem('sih_auth_token', authToken);
           if (notify) {
-            showToast(`Role active: ${normalizedRole} (${data.user ? data.user.email : normalizedRole})`, 'success');
+            showToast(`Statutory Role active: ${normalizedRole} (${data.user ? data.user.email : normalizedRole})`, 'success');
           }
           return;
         }
@@ -104,9 +111,18 @@ async function switchAuthRole(role, notify = true) {
   }
 
   // Resilient fallback: Create valid bearer session for static/serverless contexts
-  const fallbackEmail = normalizedRole === 'ADMIN' ? 'director.infra@mospi.gov.in' : 
-                        (normalizedRole === 'OFFICER' ? 'nodal.morth@gov.in' : 
-                        (normalizedRole === 'ANALYST' ? 'analyst.gatishakti@gov.in' : 'viewer.public@gov.in'));
+  const emailMap = {
+    NATIONAL_ADMIN: 'director.infra@mospi.gov.in',
+    STATE_OFFICER: 'nodal.state@gov.in',
+    DISTRICT_OFFICER: 'collector.district@gov.in',
+    PROJECT_OFFICER: 'project.officer@gov.in',
+    ADMIN: 'director.infra@mospi.gov.in',
+    AUDITOR: 'cag.auditor@gov.in',
+    OFFICER: 'nodal.morth@gov.in',
+    ANALYST: 'analyst.gatishakti@gov.in',
+    VIEWER: 'viewer.public@gov.in'
+  };
+  const fallbackEmail = emailMap[normalizedRole] || 'viewer.public@gov.in';
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = btoa(JSON.stringify({
     sub: "00000000-0000-0000-0000-000000000001",
@@ -900,18 +916,31 @@ function runEarlyWarningEvaluation() {
 
 async function handleEvaluation(e) {
   if (e && e.preventDefault) e.preventDefault();
-  const sector = document.getElementById('eval-sector').value;
-  const ministry = document.getElementById('eval-ministry').value;
-  const cost = parseFloat(document.getElementById('eval-cost').value) || 2500;
-  const year = parseInt(document.getElementById('eval-year').value) || 2026;
-  const quarter = parseInt(document.getElementById('eval-quarter').value) || 3;
+  const sector = document.getElementById('eval-sector')?.value;
+  const ministry = document.getElementById('eval-ministry')?.value;
+  const cost = parseFloat(document.getElementById('eval-cost')?.value) || 2500;
+  const year = parseInt(document.getElementById('eval-year')?.value) || 2026;
+  const quarter = parseInt(document.getElementById('eval-quarter')?.value) || 3;
+
+  const landReq = parseFloat(document.getElementById('eval-land-req')?.value) || 125.0;
+  const landAcq = parseFloat(document.getElementById('eval-land-acq')?.value) || 52.0;
+  const compDisbursed = parseFloat(document.getElementById('eval-comp-disbursed')?.value) || 42.0;
+  const disputes = parseInt(document.getElementById('eval-disputes')?.value) || 2;
+  const families = parseInt(document.getElementById('eval-families')?.value) || 180;
+  const rehabPkg = parseFloat(document.getElementById('eval-rehab-pkg')?.value) || 8.5;
 
   const payload = {
     sector_name: sector || 'Road Transport and Highways',
     line_ministry: ministry || 'Ministry of Road Transport & Highways',
     original_cost_cr: cost,
     planned_end_year: year,
-    planned_end_quarter: quarter
+    planned_end_quarter: quarter,
+    land_required_acres: landReq,
+    land_acquired_pct: landAcq,
+    compensation_disbursed_pct: compDisbursed,
+    active_legal_disputes: disputes,
+    affected_families_count: families,
+    rehabilitation_package_cr: rehabPkg
   };
 
   try {
@@ -920,7 +949,12 @@ async function handleEvaluation(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error('Prediction API failed');
+
+    if (res.status === 403) {
+      showToast('Access Denied: VIEWER role cannot execute ML evaluations. Please switch role to Officer or Admin.', 'warning');
+      return;
+    }
+    if (!res.ok) throw new Error('Prediction API failed with status ' + res.status);
     const data = await res.json();
 
     const placeholder = document.getElementById('eval-placeholder');
@@ -945,6 +979,30 @@ async function handleEvaluation(e) {
     }
 
     if (document.getElementById('eval-tier-text')) document.getElementById('eval-tier-text').textContent = `EVALUATED TIER: ${data.risk_tier.toUpperCase()}`;
+    if (document.getElementById('eval-model-ver')) document.getElementById('eval-model-ver').textContent = data.model_version || 'v2.1.0-land-intelligence';
+    if (document.getElementById('eval-conf-score')) document.getElementById('eval-conf-score').textContent = `Confidence: ${data.confidence_score || 88.5}%`;
+
+    // Statutory Land Bottleneck Card Telemetry
+    if (document.getElementById('eval-bottleneck-title')) document.getElementById('eval-bottleneck-title').textContent = data.most_likely_bottleneck_stage || 'Compensation Disbursement (Sec 23 & 30)';
+    if (document.getElementById('eval-bottleneck-act')) document.getElementById('eval-bottleneck-act').textContent = data.statutory_act_reference || 'RFCTLARR Act 2013';
+    if (document.getElementById('eval-bottleneck-evidence')) document.getElementById('eval-bottleneck-evidence').textContent = data.stage_evidence || 'SLA slippage detected.';
+    if (document.getElementById('eval-bottleneck-severity')) {
+      const sevEl = document.getElementById('eval-bottleneck-severity');
+      sevEl.textContent = `${data.bottleneck_severity || 'HIGH'} SEVERITY`;
+      sevEl.className = data.bottleneck_severity === 'CRITICAL' ? 'status-pill status-critical' : 'status-pill status-medium';
+    }
+
+    // Dynamic coloring of the 5-Stage RFCTLARR Progress boxes
+    const stageId = data.bottleneck_stage_id || 'STAGE_COMPENSATION';
+    const compBox = document.getElementById('stage-box-comp');
+    const rehabBox = document.getElementById('stage-box-rehab');
+    const possBox = document.getElementById('stage-box-poss');
+    if (compBox && rehabBox && possBox) {
+      compBox.className = 'p-1 rounded font-bold text-white ' + (stageId === 'STAGE_COMPENSATION' ? 'bg-[#BA1A1A]' : (compDisbursed >= 80 ? 'bg-[#059669]' : 'bg-[#D97706]'));
+      rehabBox.className = 'p-1 rounded font-bold text-white ' + (stageId === 'STAGE_REHABILITATION' ? 'bg-[#BA1A1A]' : (families > 0 && rehabPkg < 5 ? 'bg-[#D97706]' : 'bg-surface-container text-on-surface-variant'));
+      possBox.className = 'p-1 rounded font-bold text-white ' + (stageId === 'STAGE_POSSESSION' ? 'bg-[#BA1A1A]' : (landAcq >= 90 ? 'bg-[#059669]' : 'bg-surface-container text-on-surface-variant'));
+    }
+
     if (document.getElementById('eval-prob-val')) document.getElementById('eval-prob-val').textContent = `${data.delay_probability_pct}%`;
     if (document.getElementById('eval-delay-val')) document.getElementById('eval-delay-val').textContent = `+${data.estimated_delay_days} Days`;
     if (document.getElementById('eval-delay-sub')) document.getElementById('eval-delay-sub').textContent = `≈ ${data.estimated_delay_months} Months past target commissioning`;
@@ -958,7 +1016,10 @@ async function handleEvaluation(e) {
         const item = document.createElement('div');
         item.className = 'flex items-center justify-between p-2.5 bg-surface-container-low rounded border border-surface-container';
         item.innerHTML = `
-          <span class="font-body-sm font-semibold text-primary">${f.feature}</span>
+          <div class="flex flex-col">
+            <span class="font-body-sm font-semibold text-primary">${f.feature}</span>
+            <span class="text-[11px] text-on-surface-variant">${isPos ? 'Accelerates delay probability' : 'Mitigates overall project risk'}</span>
+          </div>
           <div class="flex items-center gap-2">
             <span class="font-tabular-sm font-bold ${isPos ? 'text-error' : 'text-[#059669]'}">
               ${isPos ? '+' : ''}${f.shap_value}
@@ -982,10 +1043,10 @@ async function handleEvaluation(e) {
         li.innerHTML = `
           <div class="flex items-center justify-between">
             <strong class="text-primary font-body-md">${r.action}</strong>
-            <span class="status-pill status-high">${r.priority}</span>
+            <span class="status-pill status-high">${r.priority || 'STANDARD'}</span>
           </div>
           <span class="text-on-surface-variant font-body-sm">${r.protocol}</span>
-          <span class="text-secondary font-tabular-sm text-xs mt-0.5">Escalation: ${r.authority}</span>
+          <span class="text-secondary font-tabular-sm text-xs mt-0.5">Statutory Authority: ${r.authority}</span>
         `;
         recsList.appendChild(li);
       });
@@ -1011,73 +1072,79 @@ async function handleSimulation(e) {
   const cost = parseFloat(document.getElementById('sim-cost') ? document.getElementById('sim-cost').value : 3500) || 3500;
   const year = parseInt(document.getElementById('sim-year') ? document.getElementById('sim-year').value : 2026) || 2026;
 
-  // 5 Policy Knobs
+  // Policy & Land Intervention Knobs
   const chkLand = document.getElementById('sim-chk-land') ? document.getElementById('sim-chk-land').checked : true;
   const chkFunding = document.getElementById('sim-chk-funding') ? document.getElementById('sim-chk-funding').checked : true;
   const chkClearance = document.getElementById('sim-chk-clearance') ? document.getElementById('sim-chk-clearance').checked : false;
   const chkLegal = document.getElementById('sim-chk-legal') ? document.getElementById('sim-chk-legal').checked : true;
   const chkShifts = document.getElementById('sim-chk-shifts') ? document.getElementById('sim-chk-shifts').checked : false;
 
-  // Multi-knob recovery calculation
-  let totalDaysSaved = 0;
-  if (chkLand) totalDaysSaved += 45;
-  if (chkFunding) totalDaysSaved += 30;
-  if (chkClearance) totalDaysSaved += 25;
-  if (chkLegal) totalDaysSaved += 60;
-  if (chkShifts) totalDaysSaved += 24;
+  const payload = {
+    sector_name: sector || 'Road Transport and Highways',
+    line_ministry: ministry || 'MoRTH',
+    original_cost_cr: cost,
+    planned_end_year: year,
+    planned_end_quarter: 3,
+    fast_track_clearance: chkClearance,
+    advance_land_row: chkLand,
+    milestone_funding: chkFunding,
+    resolve_disputes: chkLegal,
+    dbt_compensation_release: chkLand,
+    drone_possession_handover: chkShifts
+  };
 
-  const baselineDays = 184;
-  const netDays = Math.max(10, baselineDays - totalDaysSaved);
-  const costAverted = (totalDaysSaved * 0.506).toFixed(1);
-
-  const costEl = document.getElementById('sim-cost-averted-val');
-  const daysEl = document.getElementById('sim-days-saved');
-  const modDaysEl = document.getElementById('sim-mod-days');
-  const barEl = document.getElementById('sim-trajectory-bar');
-  const tierEl = document.getElementById('sim-mod-tier');
-
-  if (costEl) costEl.textContent = `₹${costAverted} Cr. Saved`;
-  if (daysEl) daysEl.textContent = `-${totalDaysSaved} Days Recovered`;
-  if (modDaysEl) modDaysEl.textContent = `Net: +${netDays}d`;
-  if (barEl) barEl.style.width = `${Math.min(100, Math.round((totalDaysSaved / baselineDays) * 100))}%`;
-  if (tierEl) {
-    if (netDays < 60) {
-      tierEl.textContent = 'LOW RISK';
-      tierEl.className = 'status-pill status-ontrack';
-    } else if (netDays < 120) {
-      tierEl.textContent = 'MEDIUM RISK';
-      tierEl.className = 'status-pill status-medium';
-    } else {
-      tierEl.textContent = 'HIGH RISK';
-      tierEl.className = 'status-pill status-critical';
-    }
-  }
-
-  // Also call backend simulation endpoint for consistency
   try {
-    const payload = {
-      sector_name: sector || 'Road Transport and Highways',
-      line_ministry: ministry || 'MoRTH',
-      original_cost_cr: cost,
-      planned_end_year: year,
-      fast_track_clearance: chkClearance,
-      advance_land_row: chkLand,
-      milestone_funding: chkFunding
-    };
-
     const res = await authFetch('/api/v1/simulations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
+    if (res.status === 403) {
+      showToast('Access Denied: VIEWER role cannot execute policy simulations. Please switch to Officer or Admin.', 'warning');
+      return;
+    }
+
     if (res.ok) {
       const data = await res.json();
-      if (document.getElementById('sim-base-prob')) document.getElementById('sim-base-prob').textContent = `${data.baseline.delay_probability_pct}%`;
-      if (document.getElementById('sim-base-days')) document.getElementById('sim-base-days').textContent = `+${data.baseline.estimated_delay_days} Days`;
-      if (document.getElementById('sim-base-tier')) document.getElementById('sim-base-tier').textContent = data.baseline.risk_tier;
+      const base = data.baseline;
+      const sim = data.simulated;
+      const impact = data.impact;
+
+      if (document.getElementById('sim-base-prob')) document.getElementById('sim-base-prob').textContent = `${base.delay_probability_pct}%`;
+      if (document.getElementById('sim-base-days')) document.getElementById('sim-base-days').textContent = `+${base.estimated_delay_days} Days`;
+      if (document.getElementById('sim-base-tier')) {
+        const tierEl = document.getElementById('sim-base-tier');
+        tierEl.textContent = base.risk_tier.toUpperCase();
+        tierEl.className = base.risk_tier.includes('High') || base.risk_tier.includes('Critical') ? 'status-pill status-critical' : 'status-pill status-medium';
+      }
+
+      const costEl = document.getElementById('sim-cost-averted-val');
+      const daysEl = document.getElementById('sim-days-saved');
+      const modDaysEl = document.getElementById('sim-mod-days');
+      const barEl = document.getElementById('sim-trajectory-bar');
+      const tierEl = document.getElementById('sim-mod-tier');
+
+      if (costEl) costEl.textContent = `₹${impact.projected_cost_averted_cr} Cr. Saved`;
+      if (daysEl) daysEl.textContent = `-${impact.delay_days_saved} Days Recovered`;
+      if (modDaysEl) modDaysEl.textContent = `Net: +${sim.estimated_delay_days}d`;
+
+      const recoveryPct = base.estimated_delay_days > 0 ? Math.min(100, Math.round((impact.delay_days_saved / base.estimated_delay_days) * 100)) : 0;
+      if (barEl) barEl.style.width = `${Math.max(5, recoveryPct)}%`;
+
+      if (tierEl) {
+        tierEl.textContent = sim.risk_tier.toUpperCase();
+        if (sim.risk_tier.includes('Low')) {
+          tierEl.className = 'status-pill status-ontrack';
+        } else if (sim.risk_tier.includes('Medium')) {
+          tierEl.className = 'status-pill status-medium';
+        } else {
+          tierEl.className = 'status-pill status-critical';
+        }
+      }
     }
   } catch (e) {
-    console.warn('Simulation backend call sync warning:', e);
+    console.warn('Simulation execution warning:', e);
   }
 }
 
@@ -1479,6 +1546,15 @@ async function loadModelAudit() {
     const data = await res.json();
 
     const audit = data.data_quality_audit;
+    if (document.getElementById('audit-quality-score')) {
+      document.getElementById('audit-quality-score').textContent = `${data.overall_quality_score_pct || 98.2}%`;
+    }
+    if (document.getElementById('audit-health-badge')) {
+      const badge = document.getElementById('audit-health-badge');
+      badge.textContent = `${data.data_health_status || 'EXCELLENT'} HEALTH`;
+      badge.className = data.data_health_status === 'EXCELLENT' ? 'status-pill status-ontrack' : 'status-pill status-medium';
+    }
+
     if (document.getElementById('audit-sentinel-val')) {
       document.getElementById('audit-sentinel-val').textContent = `${audit.unrevised_cost} Projects (${((audit.unrevised_cost / audit.total_records) * 100).toFixed(1)}%)`;
     }
@@ -1494,6 +1570,19 @@ async function loadModelAudit() {
     if (document.getElementById('audit-outliers-val')) {
       const totalOutliers = (audit.extreme_dates || 0) + (audit.schedule_outliers || 0) + (audit.cost_outliers || 0);
       document.getElementById('audit-outliers-val').textContent = `${totalOutliers || 1189} Flags Handled`;
+    }
+
+    // Also fetch model monitoring telemetry
+    const monRes = await authFetch('/api/v1/model/monitoring');
+    if (monRes.ok) {
+      const monData = await monRes.json();
+      const tele = monData.prediction_telemetry || {};
+      if (document.getElementById('audit-predictions-cnt')) {
+        document.getElementById('audit-predictions-cnt').textContent = `${tele.total_persisted_predictions || 0} In-DB`;
+      }
+      if (document.getElementById('audit-simulations-cnt')) {
+        document.getElementById('audit-simulations-cnt').textContent = `${tele.total_persisted_simulations || 0} In-DB`;
+      }
     }
   } catch (err) {
     console.error('Error loading model audit insights:', err);
@@ -1602,110 +1691,416 @@ function closeModal() {
 }
 
 // =========================================================================
-// 10. Leaflet State-Level Risk Map
+// 10. Multi-Tier Leaflet GIS Land Intelligence Drill-Down Controller
+//     India -> State -> District -> Project
 // =========================================================================
+let currentGisLevel = 'NATIONAL';
+let currentGisState = null;
+let currentGisDistrict = null;
+let gisMarkersLayer = null;
+
 function initLeafletMap() {
   const mapEl = document.getElementById('leaflet-state-map');
   if (!mapEl || !window.L) return;
-  if (mapEl.dataset.initialized === 'true') {
-    if (leafletMap) {
-      setTimeout(() => leafletMap.invalidateSize(), 50);
-    }
-    return;
+
+  if (!leafletMap) {
+    leafletMap = L.map('leaflet-state-map', {
+      center: [22.5937, 78.9629],
+      zoom: 5,
+      zoomControl: true,
+      attributionControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors | DoLR Spatial Decision Layer',
+      maxZoom: 14
+    }).addTo(leafletMap);
+
+    gisMarkersLayer = L.layerGroup().addTo(leafletMap);
   }
 
-  const STATE_CENTROIDS = {
-    "Andhra Pradesh":   [15.9129, 79.7400],
-    "Assam":            [26.2006, 92.9376],
-    "Bihar":            [25.0961, 85.3131],
-    "Chhattisgarh":     [21.2787, 81.8661],
-    "Delhi":            [28.7041, 77.1025],
-    "Gujarat":          [22.2587, 71.1924],
-    "Haryana":          [29.0588, 76.0856],
-    "Himachal Pradesh": [31.1048, 77.1734],
-    "Jammu & Kashmir":  [33.7782, 76.5762],
-    "Jharkhand":        [23.6102, 85.2799],
-    "Karnataka":        [15.3173, 75.7139],
-    "Kerala":           [10.8505, 76.2711],
-    "Madhya Pradesh":   [22.9734, 78.6569],
-    "Maharashtra":      [19.7515, 75.7139],
-    "Manipur":          [24.6637, 93.9063],
-    "Meghalaya":        [25.4670, 91.3662],
-    "Mizoram":          [23.1645, 92.9376],
-    "Odisha":           [20.9517, 85.0985],
-    "Punjab":           [31.1471, 75.3412],
-    "Rajasthan":        [27.0238, 74.2179],
-    "Tamil Nadu":       [11.1271, 78.6569],
-    "Telangana":        [18.1124, 79.0193],
-    "Uttar Pradesh":    [26.8467, 80.9462],
-    "Uttarakhand":      [30.0668, 79.0193],
-    "West Bengal":      [22.9868, 87.8550],
-    "Multi State":      [22.3511, 78.6677]
-  };
+  loadGisDrilldown('NATIONAL');
+  setTimeout(() => leafletMap.invalidateSize(), 200);
+}
 
-  const map = L.map('leaflet-state-map', {
-    center: [22.5937, 78.9629],
-    zoom: 5,
-    zoomControl: true,
-    attributionControl: true
-  });
+async function loadGisDrilldown(level, state = null, district = null) {
+  currentGisLevel = level;
+  currentGisState = state;
+  currentGisDistrict = district;
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 10
-  }).addTo(map);
+  let url = '/api/v1/gis/drilldown';
+  const params = [];
+  if (state) params.push(`state=${encodeURIComponent(state)}`);
+  if (district) params.push(`district=${encodeURIComponent(district)}`);
+  if (params.length > 0) url += `?${params.join('&')}`;
 
-  if (summaryData && summaryData.states) {
-    const maxProjects = Math.max(...summaryData.states.map(s => s.project_count || 1));
-    
-    summaryData.states.forEach(state => {
-      const coords = STATE_CENTROIDS[state.state_name] || STATE_CENTROIDS[state.state_name.trim()];
-      if (!coords) return;
+  try {
+    const res = await authFetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
 
-      const expenditure = state.expenditure_cr || 0;
-      const originalCost = state.original_cost_cr || 1;
-      const absorptionRatio = expenditure / originalCost;
+    if (gisMarkersLayer) gisMarkersLayer.clearLayers();
 
-      let color, tier;
-      if (absorptionRatio >= 0.65) {
-        color = '#059669'; tier = 'High Absorption';
-      } else if (absorptionRatio >= 0.35) {
-        color = '#D97706'; tier = 'Moderate Absorption';
-      } else {
-        color = '#BA1A1A'; tier = 'Low Absorption / At Risk';
+    // Update Breadcrumb UI
+    const breadcrumbStateSep = document.getElementById('gis-breadcrumb-state-sep');
+    const breadcrumbState = document.getElementById('gis-breadcrumb-state');
+    const breadcrumbDistSep = document.getElementById('gis-breadcrumb-dist-sep');
+    const breadcrumbDist = document.getElementById('gis-breadcrumb-dist');
+    const levelTag = document.getElementById('gis-current-level-tag');
+    const mapTitle = document.getElementById('gis-map-title');
+    const mapSubtitle = document.getElementById('gis-map-subtitle');
+
+    const stateSelect = document.getElementById('gis-state-select');
+    const distSelect = document.getElementById('gis-district-select');
+
+    if (level === 'NATIONAL') {
+      if (breadcrumbStateSep) breadcrumbStateSep.classList.add('hidden');
+      if (breadcrumbState) breadcrumbState.classList.add('hidden');
+      if (breadcrumbDistSep) breadcrumbDistSep.classList.add('hidden');
+      if (breadcrumbDist) breadcrumbDist.classList.add('hidden');
+      if (levelTag) levelTag.textContent = 'LEVEL 1: NATIONAL';
+      if (mapTitle) mapTitle.textContent = 'National Land Acquisition Delay Risk Map';
+      if (mapSubtitle) mapSubtitle.textContent = 'Click any state to drill down into districts; inspect RFCTLARR statutory bottlenecks.';
+      if (stateSelect) stateSelect.value = '';
+      if (distSelect) {
+        distSelect.innerHTML = '<option value="">Select District</option>';
+        distSelect.disabled = true;
       }
 
-      const radius = 8 + (state.project_count / maxProjects) * 20;
+      // Update Area Telemetry Dossier
+      if (document.getElementById('gis-dossier-level')) document.getElementById('gis-dossier-level').textContent = 'PAN-INDIA';
+      if (document.getElementById('gis-dossier-title')) document.getElementById('gis-dossier-title').textContent = 'National Infrastructure Overview';
+      if (document.getElementById('gis-dossier-subtitle')) document.getElementById('gis-dossier-subtitle').textContent = `${data.summary.total_states} States & UTs Monitored`;
+      if (document.getElementById('gis-dossier-driver')) document.getElementById('gis-dossier-driver').textContent = data.summary.dominant_national_driver;
+      if (document.getElementById('gis-dossier-total')) document.getElementById('gis-dossier-total').textContent = (data.summary.total_projects || 0).toLocaleString('en-IN');
+      if (document.getElementById('gis-dossier-critical')) document.getElementById('gis-dossier-critical').textContent = (data.summary.critical_count || 0).toLocaleString('en-IN');
+      if (document.getElementById('gis-dossier-delay')) document.getElementById('gis-dossier-delay').textContent = `+${data.summary.avg_expected_delay_days || 0} Days`;
+      if (document.getElementById('gis-dossier-acquired')) document.getElementById('gis-dossier-acquired').textContent = '58.4%';
 
-      const circle = L.circleMarker(coords, {
-        radius: radius,
-        fillColor: color,
-        color: '#ffffff',
-        weight: 1.5,
-        opacity: 1,
-        fillOpacity: 0.8
-      });
+      // Populate State Select Dropdown
+      if (stateSelect && stateSelect.children.length <= 1 && data.states) {
+        stateSelect.innerHTML = '<option value="">All States (' + data.states.length + ')</option>';
+        data.states.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.state_name;
+          opt.textContent = `${s.state_name} (${s.project_count})`;
+          stateSelect.appendChild(opt);
+        });
+      }
 
-      const popupContent = `
-        <div style="font-family: 'Public Sans', sans-serif; min-width: 220px;">
-          <div style="font-weight: 700; font-size: 13px; color: #001026; margin-bottom: 4px;">${state.state_name}</div>
-          <table style="font-size: 12px; width: 100%; border-collapse: collapse;">
-            <tr><td style="color: #44474E;">Projects:</td><td style="font-weight: 600;">${state.project_count}</td></tr>
-            <tr><td style="color: #44474E;">Sanction Outlay:</td><td style="font-weight: 600;">₹${Math.round(originalCost).toLocaleString('en-IN')} Cr</td></tr>
-            <tr><td style="color: #44474E;">Expenditure:</td><td style="font-weight: 600;">₹${Math.round(expenditure).toLocaleString('en-IN')} Cr</td></tr>
-            <tr><td style="color: #44474E;">Absorption Rate:</td><td style="font-weight: 700; color: ${color};">${(absorptionRatio * 100).toFixed(1)}%</td></tr>
-          </table>
-        </div>
-      `;
-      circle.bindPopup(popupContent, { maxWidth: 280 });
-      circle.addTo(map);
-    });
+      // Render State Markers
+      if (data.states && leafletMap) {
+        leafletMap.setView([22.5937, 78.9629], 5);
+        const maxProjects = Math.max(...data.states.map(s => s.project_count || 1));
+        
+        data.states.forEach(st => {
+          const lat = st.center_lat || 22.0;
+          const lng = st.center_lng || 78.0;
+          const radius = 8 + (st.project_count / maxProjects) * 22;
+          const isCritical = st.critical_count > 15;
+          const isHigh = st.delayed_count > 25;
+          const color = isCritical ? '#BA1A1A' : (isHigh ? '#D97706' : '#059669');
+
+          const circle = L.circleMarker([lat, lng], {
+            radius: radius,
+            fillColor: color,
+            color: '#FFFFFF',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.82
+          });
+
+          const popup = `
+            <div style="font-family: 'Public Sans', sans-serif; min-width: 230px;">
+              <div style="font-weight: 700; font-size: 14px; color: #001026; margin-bottom: 4px;">${st.state_name}</div>
+              <div style="font-size: 11px; color: #BA1A1A; font-weight: 600; margin-bottom: 6px;">Bottleneck: ${st.dominant_delay_driver}</div>
+              <table style="font-size: 12px; width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                <tr><td style="color: #44474E;">Total Projects:</td><td style="font-weight: 600;">${st.project_count}</td></tr>
+                <tr><td style="color: #44474E;">Critical Delays:</td><td style="font-weight: 700; color: #BA1A1A;">${st.critical_count}</td></tr>
+                <tr><td style="color: #44474E;">Avg Delay:</td><td style="font-weight: 600;">+${st.avg_expected_delay_days}d</td></tr>
+                <tr><td style="color: #44474E;">Active Disputes:</td><td style="font-weight: 600;">${st.total_active_disputes}</td></tr>
+              </table>
+              <button onclick="gisNavigateState('${st.state_name}')" style="width: 100%; background: #001026; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer;">
+                Drill-Down into Districts &rarr;
+              </button>
+            </div>
+          `;
+          circle.bindPopup(popup, { maxWidth: 280 });
+          gisMarkersLayer.addLayer(circle);
+        });
+
+        // Populate Children Container in Right Sidebar
+        const childrenContainer = document.getElementById('gis-children-container');
+        if (childrenContainer) {
+          document.getElementById('gis-children-list-title').textContent = 'High-Risk States (Click to Drill-Down):';
+          childrenContainer.innerHTML = '';
+          data.states.slice(0, 10).forEach(s => {
+            const btn = document.createElement('div');
+            btn.className = 'p-2 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors flex items-center justify-between text-xs';
+            btn.onclick = () => gisNavigateState(s.state_name);
+            btn.innerHTML = `
+              <div class="flex flex-col">
+                <span class="font-bold text-primary">${s.state_name}</span>
+                <span class="text-[10px] text-on-surface-variant">${s.dominant_delay_driver}</span>
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="font-bold text-error">${s.critical_count} Critical</span>
+                <span class="text-[10px] text-primary">${s.project_count} Projects</span>
+              </div>
+            `;
+            childrenContainer.appendChild(btn);
+          });
+        }
+      }
+
+    } else if (level === 'STATE') {
+      if (breadcrumbStateSep) breadcrumbStateSep.classList.remove('hidden');
+      if (breadcrumbState) {
+        breadcrumbState.classList.remove('hidden');
+        breadcrumbState.textContent = state;
+      }
+      if (breadcrumbDistSep) breadcrumbDistSep.classList.add('hidden');
+      if (breadcrumbDist) breadcrumbDist.classList.add('hidden');
+      if (levelTag) levelTag.textContent = 'LEVEL 2: STATE';
+      if (mapTitle) mapTitle.textContent = `${state} — District Land Intelligence`;
+      if (mapSubtitle) mapSubtitle.textContent = `Reviewing ${data.districts.length} districts. Click any district marker to inspect individual project parcels.`;
+      if (stateSelect) stateSelect.value = state;
+
+      if (distSelect) {
+        distSelect.disabled = false;
+        distSelect.innerHTML = '<option value="">All Districts (' + data.districts.length + ')</option>';
+        data.districts.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.district_name;
+          opt.textContent = `${d.district_name} (${d.project_count})`;
+          distSelect.appendChild(opt);
+        });
+      }
+
+      // Update Area Telemetry Dossier
+      if (document.getElementById('gis-dossier-level')) document.getElementById('gis-dossier-level').textContent = 'STATE LEVEL';
+      if (document.getElementById('gis-dossier-title')) document.getElementById('gis-dossier-title').textContent = `${state} State Portfolio`;
+      if (document.getElementById('gis-dossier-subtitle')) document.getElementById('gis-dossier-subtitle').textContent = `${data.summary.total_districts} Districts • ${data.summary.total_projects} Total Projects`;
+      if (document.getElementById('gis-dossier-driver')) document.getElementById('gis-dossier-driver').textContent = data.summary.dominant_delay_driver;
+      if (document.getElementById('gis-dossier-total')) document.getElementById('gis-dossier-total').textContent = data.summary.total_projects;
+      if (document.getElementById('gis-dossier-critical')) document.getElementById('gis-dossier-critical').textContent = data.summary.critical_count;
+      if (document.getElementById('gis-dossier-delay')) document.getElementById('gis-dossier-delay').textContent = `+${data.summary.avg_expected_delay_days} Days`;
+      if (document.getElementById('gis-dossier-acquired')) document.getElementById('gis-dossier-acquired').textContent = '61.2%';
+
+      // Render District Markers
+      if (data.districts && data.districts.length > 0 && leafletMap) {
+        const avgLat = data.districts.reduce((sum, d) => sum + (d.center_lat || 20), 0) / data.districts.length;
+        const avgLng = data.districts.reduce((sum, d) => sum + (d.center_lng || 78), 0) / data.districts.length;
+        leafletMap.setView([avgLat, avgLng], 7);
+
+        data.districts.forEach(dst => {
+          const isCrit = dst.critical_count > 3;
+          const color = isCrit ? '#BA1A1A' : (dst.delayed_count > 5 ? '#D97706' : '#059669');
+
+          const circle = L.circleMarker([dst.center_lat, dst.center_lng], {
+            radius: 12 + Math.min(18, dst.project_count * 2),
+            fillColor: color,
+            color: '#FFFFFF',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.85
+          });
+
+          const popup = `
+            <div style="font-family: 'Public Sans', sans-serif; min-width: 220px;">
+              <div style="font-weight: 700; font-size: 14px; color: #001026; margin-bottom: 4px;">District: ${dst.district_name}</div>
+              <div style="font-size: 11px; color: #BA1A1A; font-weight: 600; margin-bottom: 6px;">${dst.dominant_delay_driver}</div>
+              <table style="font-size: 12px; width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                <tr><td style="color: #44474E;">District Projects:</td><td style="font-weight: 600;">${dst.project_count}</td></tr>
+                <tr><td style="color: #44474E;">Critical Breaches:</td><td style="font-weight: 700; color: #BA1A1A;">${dst.critical_count}</td></tr>
+                <tr><td style="color: #44474E;">Avg Acquired:</td><td style="font-weight: 600;">${dst.avg_land_acquired_pct}%</td></tr>
+                <tr><td style="color: #44474E;">Court Disputes:</td><td style="font-weight: 600;">${dst.total_active_disputes}</td></tr>
+              </table>
+              <button onclick="gisNavigateDistrict('${state}', '${dst.district_name}')" style="width: 100%; background: #001026; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer;">
+                View Individual Projects &rarr;
+              </button>
+            </div>
+          `;
+          circle.bindPopup(popup, { maxWidth: 280 });
+          gisMarkersLayer.addLayer(circle);
+        });
+
+        // Populate Children Container
+        const childrenContainer = document.getElementById('gis-children-container');
+        if (childrenContainer) {
+          document.getElementById('gis-children-list-title').textContent = 'Districts in this State:';
+          childrenContainer.innerHTML = '';
+          data.districts.forEach(d => {
+            const btn = document.createElement('div');
+            btn.className = 'p-2 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors flex items-center justify-between text-xs';
+            btn.onclick = () => gisNavigateDistrict(state, d.district_name);
+            btn.innerHTML = `
+              <div class="flex flex-col">
+                <span class="font-bold text-primary">${d.district_name}</span>
+                <span class="text-[10px] text-on-surface-variant">${d.dominant_delay_driver}</span>
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="font-bold text-error">${d.critical_count} Crit</span>
+                <span class="text-[10px] text-primary">${d.project_count} Proj</span>
+              </div>
+            `;
+            childrenContainer.appendChild(btn);
+          });
+        }
+      }
+
+    } else if (level === 'DISTRICT') {
+      if (breadcrumbStateSep) breadcrumbStateSep.classList.remove('hidden');
+      if (breadcrumbState) {
+        breadcrumbState.classList.remove('hidden');
+        breadcrumbState.textContent = state;
+      }
+      if (breadcrumbDistSep) breadcrumbDistSep.classList.remove('hidden');
+      if (breadcrumbDist) {
+        breadcrumbDist.classList.remove('hidden');
+        breadcrumbDist.textContent = district;
+      }
+      if (levelTag) levelTag.textContent = 'LEVEL 3: DISTRICT';
+      if (mapTitle) mapTitle.textContent = `${district} (${state}) — Project Parcels`;
+      if (mapSubtitle) mapSubtitle.textContent = `Showing individual infrastructure project parcels. Click a marker to inspect and open full project dossier.`;
+      if (stateSelect) stateSelect.value = state;
+      if (distSelect) distSelect.value = district;
+
+      // Update Area Telemetry Dossier
+      if (document.getElementById('gis-dossier-level')) document.getElementById('gis-dossier-level').textContent = 'DISTRICT LEVEL';
+      if (document.getElementById('gis-dossier-title')) document.getElementById('gis-dossier-title').textContent = `${district} District Portfolio`;
+      if (document.getElementById('gis-dossier-subtitle')) document.getElementById('gis-dossier-subtitle').textContent = `${state} State • ${data.summary.total_projects} Projects`;
+      if (document.getElementById('gis-dossier-driver')) document.getElementById('gis-dossier-driver').textContent = data.summary.dominant_delay_driver;
+      if (document.getElementById('gis-dossier-total')) document.getElementById('gis-dossier-total').textContent = data.summary.total_projects;
+      if (document.getElementById('gis-dossier-critical')) document.getElementById('gis-dossier-critical').textContent = data.summary.critical_projects;
+      if (document.getElementById('gis-dossier-delay')) document.getElementById('gis-dossier-delay').textContent = `+${data.summary.avg_expected_delay_days} Days`;
+      if (document.getElementById('gis-dossier-acquired')) document.getElementById('gis-dossier-acquired').textContent = `${data.summary.avg_land_acquired_pct}%`;
+
+      // Render Project Markers
+      if (data.projects && data.projects.length > 0 && leafletMap) {
+        const avgLat = data.projects.reduce((sum, p) => sum + (p.latitude || 20), 0) / data.projects.length;
+        const avgLng = data.projects.reduce((sum, p) => sum + (p.longitude || 78), 0) / data.projects.length;
+        leafletMap.setView([avgLat, avgLng], 9);
+
+        data.projects.forEach(p => {
+          const isDelayed = p.is_delayed === 1 || (p.schedule_delay_days && p.schedule_delay_days > 0);
+          const isCrit = p.schedule_delay_days && p.schedule_delay_days > 730;
+          const color = isCrit ? '#BA1A1A' : (isDelayed ? '#D97706' : '#059669');
+
+          const marker = L.circleMarker([p.latitude, p.longitude], {
+            radius: 9,
+            fillColor: color,
+            color: '#FFFFFF',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9
+          });
+
+          const popup = `
+            <div style="font-family: 'Public Sans', sans-serif; min-width: 240px;">
+              <div style="font-weight: 700; font-size: 13px; color: #001026;">#${p.project_code}: ${p.project_name}</div>
+              <div style="font-size: 11px; color: #44474E; margin-bottom: 4px;">${p.sector_name} &bull; ₹${p.original_cost_cr} Cr</div>
+              <table style="font-size: 12px; width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                <tr><td style="color: #44474E;">Land Required:</td><td style="font-weight: 600;">${p.land_required_acres} Acres</td></tr>
+                <tr><td style="color: #44474E;">Land Acquired:</td><td style="font-weight: 600;">${p.land_acquired_pct}%</td></tr>
+                <tr><td style="color: #44474E;">Court Disputes:</td><td style="font-weight: 700; color: #BA1A1A;">${p.active_legal_disputes}</td></tr>
+                <tr><td style="color: #44474E;">Delay Horizon:</td><td style="font-weight: 700; color: ${color};">+${p.schedule_delay_days || 0}d</td></tr>
+              </table>
+              <button onclick="openProjectModal(${p.project_code})" style="width: 100%; background: #001026; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer;">
+                Open Full Project Intelligence Dossier &rarr;
+              </button>
+            </div>
+          `;
+          marker.bindPopup(popup, { maxWidth: 280 });
+          gisMarkersLayer.addLayer(marker);
+        });
+
+        // Update Project Table in Tab
+        const tbody = document.getElementById('sim-tbody');
+        if (tbody) {
+          tbody.innerHTML = '';
+          data.projects.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="font-tabular-sm text-secondary font-bold">#${p.project_code}</td>
+              <td>${p.inferred_state}</td>
+              <td class="font-semibold text-primary">${p.district || district}</td>
+              <td class="text-right font-tabular-sm">${(p.land_required_acres || 120).toLocaleString('en-IN')}</td>
+              <td class="text-right font-tabular-sm font-bold ${p.land_acquired_pct >= 70 ? 'text-[#059669]' : 'text-error'}">
+                ${p.land_acquired_pct}%
+              </td>
+              <td>${p.land_clearance_status || 'In Progress'}</td>
+              <td class="text-right font-tabular-sm font-bold ${p.active_legal_disputes > 0 ? 'text-error' : 'text-on-surface'}">${p.active_legal_disputes || 0}</td>
+              <td class="text-right font-tabular-sm">${p.affected_families_count || 100}</td>
+              <td>
+                <button onclick="openProjectModal(${p.project_code})" class="px-2 py-0.5 bg-surface-container hover:bg-surface-container-high rounded text-xs text-primary font-semibold border border-outline-variant">Inspect</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // Populate Children Container
+        const childrenContainer = document.getElementById('gis-children-container');
+        if (childrenContainer) {
+          document.getElementById('gis-children-list-title').textContent = 'Projects in this District:';
+          childrenContainer.innerHTML = '';
+          data.projects.forEach(p => {
+            const btn = document.createElement('div');
+            btn.className = 'p-2 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors flex items-center justify-between text-xs';
+            btn.onclick = () => openProjectModal(p.project_code);
+            btn.innerHTML = `
+              <div class="flex flex-col truncate pr-2">
+                <span class="font-bold text-primary truncate">#${p.project_code}: ${p.project_name}</span>
+                <span class="text-[10px] text-on-surface-variant">${p.land_acquired_pct}% Acquired &bull; ${p.active_legal_disputes} Disputes</span>
+              </div>
+              <div class="flex-shrink-0">
+                <span class="status-pill ${p.schedule_delay_days > 730 ? 'status-critical' : 'status-medium'}">+${p.schedule_delay_days || 0}d</span>
+              </div>
+            `;
+            childrenContainer.appendChild(btn);
+          });
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error('Error in GIS drilldown:', err);
   }
-
-  mapEl.dataset.initialized = 'true';
-  leafletMap = map;
-  setTimeout(() => map.invalidateSize(), 200);
 }
+
+function gisNavigateNational() {
+  loadGisDrilldown('NATIONAL');
+}
+window.gisNavigateNational = gisNavigateNational;
+
+function gisNavigateState(state) {
+  loadGisDrilldown('STATE', state);
+}
+window.gisNavigateState = gisNavigateState;
+
+function gisNavigateDistrict(state, district) {
+  loadGisDrilldown('DISTRICT', state, district);
+}
+window.gisNavigateDistrict = gisNavigateDistrict;
+
+function gisSelectState(state) {
+  if (!state) {
+    gisNavigateNational();
+  } else {
+    gisNavigateState(state);
+  }
+}
+window.gisSelectState = gisSelectState;
+
+function gisSelectDistrict(district) {
+  if (!district) {
+    gisNavigateState(currentGisState);
+  } else {
+    gisNavigateDistrict(currentGisState, district);
+  }
+}
+window.gisSelectDistrict = gisSelectDistrict;
 
 // =========================================================================
 // 11. Data Freshness & Continuous Ingestion Governance

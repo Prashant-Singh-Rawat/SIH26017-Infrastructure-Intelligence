@@ -15,6 +15,15 @@ class PredictRequest(StrictBaseModel):
     original_cost_cr: float = Field(..., gt=0.0, le=1000000.0, description="Original sanctioned outlay in Crores (INR)")
     planned_end_year: int = Field(..., ge=2000, le=2050, description="Planned completion calendar year")
     planned_end_quarter: int = Field(2, ge=1, le=4, description="Planned completion fiscal quarter (1-4)")
+    # Land Acquisition Stage Parameters (RFCTLARR Act 2013)
+    project_code: Optional[int] = Field(None, description="Existing project code if evaluating catalog asset")
+    land_required_acres: Optional[float] = Field(None, ge=0.0, le=1000000.0, description="Total land required in acres")
+    land_acquired_pct: Optional[float] = Field(None, ge=0.0, le=100.0, description="Percentage of land acquired to date")
+    compensation_disbursed_pct: Optional[float] = Field(None, ge=0.0, le=100.0, description="Percentage of compensation disbursed")
+    active_legal_disputes: Optional[int] = Field(None, ge=0, le=5000, description="Active court stays or Section 64 dispute petitions")
+    affected_families_count: Optional[int] = Field(None, ge=0, le=500000, description="Number of project-affected families requiring R&R")
+    rehabilitation_package_cr: Optional[float] = Field(None, ge=0.0, le=100000.0, description="R&R package outlay in Crores")
+    current_land_stage: Optional[str] = Field(None, max_length=64, description="Current statutory stage ID")
 
 class SimulateRequest(StrictBaseModel):
     sector_name: str = Field(..., min_length=2, max_length=120, description="Infrastructure sector name")
@@ -25,6 +34,14 @@ class SimulateRequest(StrictBaseModel):
     fast_track_clearance: bool = Field(False, description="Apply single-window fast track clearance")
     advance_land_row: bool = Field(False, description="Apply advance 100% RoW possession")
     milestone_funding: bool = Field(False, description="Apply milestone tranche disbursement")
+    # Land Intervention Levers
+    resolve_disputes: bool = Field(False, description="Constitute Section 64 Lok Adalat fast-track tribunal")
+    dbt_compensation_release: bool = Field(False, description="PFMS direct escrow compensation release")
+    drone_possession_handover: bool = Field(False, description="Accelerated Section 38 drone boundary demarcation")
+    project_code: Optional[int] = Field(None, description="Optional project code for context")
+    land_required_acres: Optional[float] = Field(None, ge=0.0, description="Land required in acres")
+    land_acquired_pct: Optional[float] = Field(None, ge=0.0, le=100.0, description="Current land acquired %")
+    active_legal_disputes: Optional[int] = Field(None, ge=0, description="Active disputes count")
 
 class EGoSDispatchPayload(StrictBaseModel):
     project_code: Optional[int] = Field(None, description="Project code")
@@ -38,6 +55,13 @@ class EGoSDispatchPayload(StrictBaseModel):
 class AlertAcknowledgeRequest(StrictBaseModel):
     notes: Optional[str] = Field(None, max_length=500, description="Officer audit or mitigation notes")
     status: str = Field("ACKNOWLEDGED", pattern="^(ACKNOWLEDGED|RESOLVED)$", description="Target alert status")
+
+class AlertAssignRequest(StrictBaseModel):
+    assigned_authority: str = Field(..., min_length=3, max_length=255, description="Assigned government officer or authority")
+    assignment_notes: Optional[str] = Field(None, max_length=500, description="Assignment rationale and deadline directives")
+
+class AlertCommentRequest(StrictBaseModel):
+    comment_text: str = Field(..., min_length=3, max_length=1000, description="Officer note or audit comment")
 
 class CreateAlertRequest(StrictBaseModel):
     project_code: int = Field(..., gt=0, description="Unique project code to associate alert with")

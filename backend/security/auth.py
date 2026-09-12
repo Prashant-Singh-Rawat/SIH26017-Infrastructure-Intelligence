@@ -16,10 +16,31 @@ JWT_ALGORITHM = "HS256"
 security_scheme = HTTPBearer(auto_error=False)
 
 ROLE_HIERARCHY = {
-    "ADMIN": 4,
-    "OFFICER": 3,
-    "ANALYST": 2,
+    "NATIONAL_ADMIN": 6,
+    "ADMIN": 6,
+    "STATE_OFFICER": 5,
+    "DISTRICT_OFFICER": 4,
+    "OFFICER": 4,
+    "PROJECT_OFFICER": 3,
+    "ANALYST": 3,
+    "AUDITOR": 2,
     "VIEWER": 1
+}
+
+ROLE_ALIASES = {
+    "NATIONAL_ADMIN": "NATIONAL_ADMIN",
+    "ADMIN": "ADMIN",
+    "STATE_OFFICER": "STATE_OFFICER",
+    "STATE": "STATE_OFFICER",
+    "DISTRICT_OFFICER": "DISTRICT_OFFICER",
+    "DISTRICT": "DISTRICT_OFFICER",
+    "OFFICER": "OFFICER",
+    "MINISTRY": "OFFICER",
+    "PROJECT_OFFICER": "PROJECT_OFFICER",
+    "ANALYST": "ANALYST",
+    "AUDITOR": "AUDITOR",
+    "VIEWER": "VIEWER",
+    "PUBLIC": "VIEWER"
 }
 
 class UserClaims(BaseModel):
@@ -107,17 +128,18 @@ def require_role(allowed_roles: List[str]):
     Role-Based Access Control (RBAC) guard.
     Enforces minimum role permissions server-side.
     """
-    allowed_upper = [r.upper() for r in allowed_roles]
+    allowed_upper = [ROLE_ALIASES.get(r.upper(), r.upper()) for r in allowed_roles]
     async def role_checker(current_user: UserClaims = Depends(get_current_user)):
-        if current_user.role not in allowed_upper:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error": {
-                        "code": "FORBIDDEN_ROLE",
-                        "message": f"Access denied: User role '{current_user.role}' lacks permission for this operation. Required: {allowed_upper}"
-                    }
+        user_role = ROLE_ALIASES.get(current_user.role.upper(), current_user.role.upper())
+        if user_role in ["ADMIN", "NATIONAL_ADMIN"] or user_role in allowed_upper:
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "FORBIDDEN_ROLE",
+                    "message": f"Access denied: User role '{current_user.role}' lacks permission for this operation. Required: {allowed_upper}"
                 }
-            )
-        return current_user
+            }
+        )
     return role_checker

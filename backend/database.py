@@ -174,7 +174,12 @@ def init_db():
         (1, 'ADMIN', 'Full system governance, audit access, import management, and model rollouts'),
         (2, 'ANALYST', 'Planning analyst: risk evaluation, ML predictions, policy simulations'),
         (3, 'OFFICER', 'Nodal governance officer: project audits, alert acknowledgements, risk reviews'),
-        (4, 'VIEWER', 'Read-only access to executive dashboards, benchmarks, and project registries');
+        (4, 'VIEWER', 'Read-only access to executive dashboards, benchmarks, and project registries'),
+        (5, 'NATIONAL_ADMIN', 'National oversight, multi-state comparison, and system configuration'),
+        (6, 'STATE_OFFICER', 'State land acquisition oversight, district escalations, and budget releases'),
+        (7, 'DISTRICT_OFFICER', 'District Collector / CALA: parcel disputes, compensation DBT, and R&R handover'),
+        (8, 'PROJECT_OFFICER', 'Project Director: field engineering, boundary demarcation, and contractor PERT'),
+        (9, 'AUDITOR', 'Statutory public auditor: immutable decision logs and model validation trail');
     """)
     
     # Seed default demo users for hackathon review
@@ -232,6 +237,7 @@ def init_db():
         project_code INTEGER PRIMARY KEY,
         source_tag TEXT NOT NULL DEFAULT '[DEMO/SIMULATION]',
         inferred_state TEXT NOT NULL,
+        district TEXT DEFAULT 'Central District',
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
         land_required_acres REAL NOT NULL,
@@ -298,6 +304,18 @@ def init_db():
         resolution_timestamp TEXT,
         status TEXT NOT NULL DEFAULT 'ACTIVE',
         FOREIGN KEY (project_code) REFERENCES projects(project_code)
+    );
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS alert_comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        alert_id INTEGER NOT NULL,
+        user_id TEXT,
+        user_name TEXT NOT NULL,
+        comment_text TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (alert_id) REFERENCES project_alerts(alert_id) ON DELETE CASCADE
     );
     """)
 
