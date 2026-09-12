@@ -11,13 +11,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
-        # 1. Content-Security-Policy: Allow self, reliable CDNs for Chart.js/Leaflet, and OpenStreetMap tiles
+        # 1. Content-Security-Policy: Allow self, reliable CDNs for Chart.js/Leaflet, Tailwind, and OpenStreetMap/Unsplash
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; "
             "font-src 'self' https://fonts.gstatic.com data:; "
-            "img-src 'self' data: https://*.tile.openstreetmap.org; "
+            "img-src 'self' data: https://*.tile.openstreetmap.org https://images.unsplash.com; "
             "connect-src 'self' https: http://127.0.0.1:* http://localhost:*; "
             "frame-ancestors 'none'; "
             "base-uri 'self';"

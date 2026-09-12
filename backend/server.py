@@ -1965,6 +1965,7 @@ if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 @app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
 def serve_index():
     index_file = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_file):
@@ -1975,14 +1976,14 @@ def serve_index():
 def serve_app_js():
     js_file = os.path.join(FRONTEND_DIR, "app.js")
     if os.path.exists(js_file):
-        return FileResponse(js_file, media_type="application/javascript")
+        return FileResponse(js_file, media_type="application/javascript", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return Response(status_code=404)
 
 @app.get("/style.css", include_in_schema=False)
 def serve_style_css():
     css_file = os.path.join(FRONTEND_DIR, "style.css")
     if os.path.exists(css_file):
-        return FileResponse(css_file, media_type="text/css")
+        return FileResponse(css_file, media_type="text/css", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return Response(status_code=404)
 
 if __name__ == "__main__":

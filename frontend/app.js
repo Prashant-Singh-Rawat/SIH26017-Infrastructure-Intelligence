@@ -21,6 +21,15 @@ let selectedProject = null;
 let cachedAlerts = [];
 let activeAlertCategory = null;
 
+// Portal Shell Engine State Variables
+let heroCarouselIndex = 0;
+let heroCarouselTimer = null;
+let heroCarouselPaused = false;
+let tickerTimer = null;
+let tickerPaused = false;
+let tickerScrollOffset = 0;
+let currentLang = 'EN';
+
 let authToken = localStorage.getItem('sih_auth_token') || null;
 let currentRole = (localStorage.getItem('sih_auth_role') || 'ADMIN').toUpperCase();
 if (currentRole === 'MINISTRY') currentRole = 'OFFICER';
@@ -61,6 +70,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadModelAudit();
   populateDropdowns();
   clearSimulatorPlaceholders();
+
+  // Initialize Portal Shell Components (Hero Carousel, What's New Ticker, Back to Top)
+  initHeroCarousel();
+  initWhatsNewTicker();
+  initBackToTopButton();
 });
 
 // Authentication & Toast Helpers
@@ -341,6 +355,7 @@ function applySummaryKPIs(data) {
   renderSectorChart(data.sectors || STATUTORY_SUMMARY_FALLBACK.sectors);
   renderProgressChart(data.physical_progress || STATUTORY_SUMMARY_FALLBACK.physical_progress);
   renderStateChart(data.states || STATUTORY_SUMMARY_FALLBACK.states);
+  if (typeof setHeroSlide === 'function') setHeroSlide(heroCarouselIndex);
 }
 
 async function loadSummaryData() {
@@ -1242,6 +1257,7 @@ async function loadAlerts() {
     cachedAlerts = data.alerts || [];
 
     filterAndSortAlerts();
+    if (typeof initWhatsNewTicker === 'function') initWhatsNewTicker();
   } catch (err) {
     console.error('Error loading alerts:', err);
     const container = document.getElementById('alerts-container');
@@ -2282,6 +2298,289 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// =========================================================================
+// Portal Shell Engine: Hero Carousel, What's New Ticker, Back-to-Top, Language
+// =========================================================================
+
+const HERO_SLIDES = [
+  {
+    eyebrow: "NATIONAL INFRASTRUCTURE MONITORING",
+    title: "Predict delays. Prevent overruns.",
+    desc: "Zero-leakage predictive intelligence and continuous land acquisition bottleneck detection for Central Sector infrastructure projects.",
+    statVal: "1,981",
+    statLabel: "Total Monitored Projects",
+    statSub: "Central Sector Capital Outlay: ₹42.78L Cr",
+    bgUrl: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?auto=format&fit=crop&w=1600&q=80",
+    thumbLabel: "Overview"
+  },
+  {
+    eyebrow: "EARLY WARNING SYSTEM",
+    title: "Critical Schedule Slippage Sentinel",
+    desc: "AI risk categorization identifying time-overrun vulnerabilities across 1,267 delayed infrastructure assets before statutory deadlines expire.",
+    statVal: "1,267",
+    statLabel: "Projects in Delay State (64%)",
+    statSub: "Average Portfolio Slippage: 712.4 Days",
+    bgUrl: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=1600&q=80",
+    thumbLabel: "Delays"
+  },
+  {
+    eyebrow: "FINANCIAL GOVERNANCE & AUDIT",
+    title: "Capital Outlays & Net Escalation",
+    desc: "Auditing ₹42.78 Lakh Crores in revised sanction value, tracking cost escalations and unrevised estimate sentinels across central ministries.",
+    statVal: "₹ 5.65L Cr",
+    statLabel: "Net Cost Escalation (+15.2%)",
+    statSub: "Cumulative Outlay: ₹42,78,402 Cr",
+    bgUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80",
+    thumbLabel: "Outlays"
+  },
+  {
+    eyebrow: "CRITICAL ESCALATION COMMAND",
+    title: "Cabinet & Empowered Group (EGoS) Alerts",
+    desc: "Immediate escalation workflows for severe multi-agency bottlenecks, environmental clearances, and legal land acquisition disputes.",
+    statVal: "12",
+    statLabel: "Active Critical Escalations",
+    statSub: "380 Total Multi-Tier Alerts Monitored",
+    bgUrl: "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1600&q=80",
+    thumbLabel: "Alerts"
+  }
+];
+
+function initHeroCarousel() {
+  const showcase = document.getElementById('gov-hero-showcase');
+  if (!showcase) return;
+
+  const rail = document.getElementById('gov-hero-rail');
+  if (rail) {
+    rail.innerHTML = '';
+    HERO_SLIDES.forEach((slide, idx) => {
+      const thumb = document.createElement('button');
+      thumb.className = `gov-hero-thumb ${idx === 0 ? 'active' : ''}`;
+      thumb.style.backgroundImage = `url('${slide.bgUrl}')`;
+      thumb.title = slide.thumbLabel;
+      thumb.setAttribute('aria-label', `View ${slide.thumbLabel} slide`);
+      thumb.onclick = () => setHeroSlide(idx);
+      rail.appendChild(thumb);
+    });
+  }
+
+  showcase.addEventListener('mouseenter', () => { heroCarouselPaused = true; updateHeroPauseIcon(); });
+  showcase.addEventListener('mouseleave', () => { heroCarouselPaused = false; updateHeroPauseIcon(); });
+  showcase.addEventListener('focusin', () => { heroCarouselPaused = true; updateHeroPauseIcon(); });
+  showcase.addEventListener('focusout', () => { heroCarouselPaused = false; updateHeroPauseIcon(); });
+
+  setHeroSlide(0);
+  startHeroCarousel();
+}
+
+function setHeroSlide(idx) {
+  heroCarouselIndex = idx;
+  const slide = HERO_SLIDES[idx];
+  if (!slide) return;
+
+  const bgEl = document.getElementById('gov-hero-bg');
+  const eyebrowEl = document.getElementById('hero-slide-eyebrow');
+  const titleEl = document.getElementById('hero-slide-title');
+  const descEl = document.getElementById('hero-slide-desc');
+  const statValEl = document.getElementById('hero-stat-val');
+  const statLabelEl = document.getElementById('hero-stat-label');
+  const statSubEl = document.getElementById('hero-stat-sub');
+
+  if (bgEl) {
+    bgEl.style.opacity = '0.4';
+    setTimeout(() => {
+      bgEl.style.backgroundImage = `url('${slide.bgUrl}')`;
+      bgEl.style.opacity = '1';
+    }, 150);
+  }
+
+  if (eyebrowEl) eyebrowEl.textContent = slide.eyebrow;
+  if (titleEl) titleEl.textContent = slide.title;
+  if (descEl) descEl.textContent = slide.desc;
+
+  if (statValEl) {
+    if (idx === 0 && summaryData && summaryData.kpi && summaryData.kpi.total_projects) {
+      statValEl.textContent = Number(summaryData.kpi.total_projects).toLocaleString('en-IN');
+    } else if (idx === 1 && summaryData && summaryData.kpi && summaryData.kpi.delayed_projects) {
+      statValEl.textContent = Number(summaryData.kpi.delayed_projects).toLocaleString('en-IN');
+    } else if (idx === 3 && summaryData && summaryData.kpi && summaryData.kpi.alerts_summary && summaryData.kpi.alerts_summary.CRITICAL) {
+      statValEl.textContent = summaryData.kpi.alerts_summary.CRITICAL;
+    } else {
+      statValEl.textContent = slide.statVal;
+    }
+  }
+
+  if (statLabelEl) statLabelEl.textContent = slide.statLabel;
+  if (statSubEl) statSubEl.textContent = slide.statSub;
+
+  const thumbs = document.querySelectorAll('.gov-hero-thumb');
+  thumbs.forEach((t, i) => {
+    if (i === idx) t.classList.add('active');
+    else t.classList.remove('active');
+  });
+}
+
+function startHeroCarousel() {
+  if (heroCarouselTimer) clearInterval(heroCarouselTimer);
+  heroCarouselTimer = setInterval(() => {
+    if (!heroCarouselPaused) {
+      heroCarouselIndex = (heroCarouselIndex + 1) % HERO_SLIDES.length;
+      setHeroSlide(heroCarouselIndex);
+    }
+  }, 6000);
+}
+
+function toggleHeroAutoplay() {
+  heroCarouselPaused = !heroCarouselPaused;
+  updateHeroPauseIcon();
+}
+
+function updateHeroPauseIcon() {
+  const icon = document.getElementById('hero-pause-icon');
+  if (icon) {
+    icon.textContent = heroCarouselPaused ? 'play_arrow' : 'pause';
+  }
+}
+
+// =========================================================================
+// What's New Vertical Ticker Engine
+// =========================================================================
+
+const STATUTORY_UPDATES = [
+  {
+    category: "CRITICAL",
+    date: "12 Sep 2026",
+    text: "NHAI: 48 projects crossed critical delay threshold (>180 days schedule slippage).",
+    action: "switchNav('alerts')"
+  },
+  {
+    category: "WARNING",
+    date: "11 Sep 2026",
+    text: "Railways: Eastern Dedicated Freight Corridor flagged for land bottleneck in Bihar.",
+    action: "switchNav('land')"
+  },
+  {
+    category: "AUDIT",
+    date: "10 Sep 2026",
+    text: "MoSPI PAIMANA: 1,981 project catalog validated under zero-leakage protocol.",
+    action: "switchNav('audit')"
+  },
+  {
+    category: "INTERVENTION",
+    date: "09 Sep 2026",
+    text: "EGoS Review: Policy intervention simulated for RFCTLARR compensation streamlining.",
+    action: "switchNav('simulator')"
+  },
+  {
+    category: "LAND",
+    date: "08 Sep 2026",
+    text: "Maharashtra Land Nodal Office: Section 19 declaration pending for 14 infrastructure tracts.",
+    action: "switchNav('land')"
+  }
+];
+
+function initWhatsNewTicker() {
+  const track = document.getElementById('gov-ticker-track');
+  const wrapper = document.getElementById('gov-ticker-wrapper');
+  if (!track || !wrapper) return;
+
+  track.innerHTML = '';
+  const items = (cachedAlerts && cachedAlerts.length > 0)
+    ? cachedAlerts.slice(0, 5).map(a => ({
+        category: a.alert_severity || 'CRITICAL',
+        date: a.created_at ? a.created_at.substring(0, 10) : 'Active',
+        text: `${a.project_name || a.project_code || 'Project'}: ${a.issue_summary || a.alert_title || 'Critical threshold alert'}`,
+        action: `switchNav('alerts')`
+      }))
+    : STATUTORY_UPDATES;
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    const isCritical = item.category === 'CRITICAL' ? 'critical' : (item.category === 'WARNING' ? 'warning' : '');
+    div.className = `gov-ticker-item ${isCritical}`;
+    div.innerHTML = `
+      <div class="gov-ticker-date">
+        <span class="status-pill status-${item.category.toLowerCase()} text-[9px] py-0.5 px-1">${item.category}</span>
+        <span>${item.date}</span>
+      </div>
+      <p class="gov-ticker-text">${item.text}</p>
+      <a href="javascript:void(0)" onclick="${item.action}" class="gov-ticker-link">
+        <span>View Details</span>
+        <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+      </a>
+    `;
+    track.appendChild(div);
+  });
+
+  wrapper.addEventListener('mouseenter', () => { tickerPaused = true; updateTickerStatus(true); });
+  wrapper.addEventListener('mouseleave', () => { tickerPaused = false; updateTickerStatus(false); });
+  wrapper.addEventListener('focusin', () => { tickerPaused = true; updateTickerStatus(true); });
+  wrapper.addEventListener('focusout', () => { tickerPaused = false; updateTickerStatus(false); });
+
+  startTicker();
+}
+
+function startTicker() {
+  if (tickerTimer) clearInterval(tickerTimer);
+  tickerTimer = setInterval(() => {
+    if (!tickerPaused) {
+      const track = document.getElementById('gov-ticker-track');
+      if (!track) return;
+
+      const firstChild = track.firstElementChild;
+      if (firstChild) {
+        const itemHeight = firstChild.offsetHeight + 12;
+        tickerScrollOffset += itemHeight;
+        track.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+        track.style.transform = `translateY(-${tickerScrollOffset}px)`;
+
+        setTimeout(() => {
+          track.style.transition = 'none';
+          track.appendChild(firstChild);
+          tickerScrollOffset -= itemHeight;
+          track.style.transform = `translateY(-${tickerScrollOffset}px)`;
+        }, 650);
+      }
+    }
+  }, 4000);
+}
+
+function toggleTickerAutoplay() {
+  tickerPaused = !tickerPaused;
+  updateTickerStatus(tickerPaused);
+}
+
+function updateTickerStatus(isPaused) {
+  const icon = document.getElementById('ticker-toggle-icon');
+  const text = document.getElementById('ticker-status-text');
+  if (icon) icon.textContent = isPaused ? 'play_arrow' : 'pause';
+  if (text) text.textContent = isPaused ? 'Paused (Click to resume)' : 'Auto-Advancing (Hover/Focus to pause)';
+}
+
+// =========================================================================
+// Circular Floating Back to Top Button
+// =========================================================================
+function initBackToTopButton() {
+  const btn = document.getElementById('btn-back-to-top');
+  if (!btn) return;
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 300) {
+      btn.classList.add('visible');
+    } else {
+      btn.classList.remove('visible');
+    }
+  });
+}
+
+// =========================================================================
+// Bilingual Toggle
+// =========================================================================
+function toggleLanguage() {
+  currentLang = currentLang === 'EN' ? 'HI' : 'EN';
+  const btn = document.getElementById('btn-language-toggle');
+  if (btn) btn.textContent = currentLang === 'EN' ? 'हिन्दी' : 'English';
+  showToast(currentLang === 'EN' ? 'Language switched to English' : 'भाषा हिन्दी में बदली गई (प्रदर्शन मोड)', 'info');
+}
+
 // Explicit global window bindings for all UI interactive handlers
 window.switchNav = switchNav;
 window.adjustFontSize = adjustFontSize;
@@ -2312,3 +2611,9 @@ window.setAlertCategory = setAlertCategory;
 window.acknowledgeAlert = acknowledgeAlert;
 window.exportAlertsLog = exportAlertsLog;
 window.batchDispatchEGoS = batchDispatchEGoS;
+window.toggleHeroAutoplay = toggleHeroAutoplay;
+window.setHeroSlide = setHeroSlide;
+window.toggleTickerAutoplay = toggleTickerAutoplay;
+window.toggleLanguage = toggleLanguage;
+window.initWhatsNewTicker = initWhatsNewTicker;
+
