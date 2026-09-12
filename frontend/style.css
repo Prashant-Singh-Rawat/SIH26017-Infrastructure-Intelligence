@@ -105,6 +105,16 @@ html, body {
   vertical-align: middle;
 }
 
+/* SVG sizing fallback to prevent layout displacement before Tailwind initialization */
+svg:not([width]) {
+  max-width: 2.25rem;
+  max-height: 2.25rem;
+}
+header svg {
+  max-width: 2.25rem;
+  max-height: 2.5rem;
+}
+
 /* Top Tricolor Strip */
 .tricolor-strip {
   height: 3px;
