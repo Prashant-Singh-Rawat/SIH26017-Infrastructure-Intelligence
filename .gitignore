@@ -29,11 +29,24 @@ htmlcov/
 
 # Vercel
 .vercel/
+.vercel
 
 # IDE
 .vscode/
 .idea/
 *.swp
 
-.vercel
+# Temp / Dev-only files
 .env*
+restore_edits.json
+scratch/
+backend/assistant_backup/
+scripts/audit_frontend_elements.py
+scripts/audit_ui.py
+scripts/check_button_handlers.py
+scripts/check_inputs_selects.py
+scripts/comprehensive_qa_audit.py
+scripts/list_interactive.py
+scripts/live_client_e2e_verification.py
+scripts/verify_part14_tests.py
+scripts/verify_production_readiness.py

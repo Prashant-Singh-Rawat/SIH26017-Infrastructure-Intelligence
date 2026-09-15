@@ -16,8 +16,11 @@
 
   <!-- Leaflet & Chart.js -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="/MarkerCluster.css"/>
+  <link rel="stylesheet" href="/MarkerCluster.Default.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/leaflet.markercluster.js"></script>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -140,23 +143,59 @@
 
       <span class="opacity-30">|</span>
 
-      <!-- Role Selector Dropdown -->
-      <div class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[15px] text-slate-400">admin_panel_settings</span>
-        <select id="auth-role-select" onchange="switchAuthRole(this.value)" class="bg-slate-800 text-white text-[11px] border border-slate-700 rounded px-2 py-0.5 font-semibold focus:outline-none cursor-pointer">
+      <!-- Role Selector Dropdown (Accessible Custom Dropdown & Sync Native Select) -->
+      <div class="gov-role-dropdown-wrap" id="gov-role-dropdown-wrap">
+        <button type="button" id="gov-role-dropdown-btn" onclick="toggleRoleDropdown()" 
+          aria-haspopup="listbox" aria-expanded="false" 
+          class="gov-role-dropdown-btn" title="Select Statutory Role / कार्यभार बदलें">
+          <span class="material-symbols-outlined text-[15px] text-slate-400">admin_panel_settings</span>
+          <span id="gov-current-role-label">State Nodal Officer</span>
+          <span class="material-symbols-outlined text-[14px] transition-transform duration-200" id="gov-role-chevron">expand_more</span>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div id="gov-role-dropdown-menu" class="gov-role-dropdown-menu" role="listbox" tabindex="-1">
+          <div role="option" data-role="NATIONAL_ADMIN" onclick="selectRole('NATIONAL_ADMIN')" class="gov-role-item">
+            <span>National Admin (Central Ministry)</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-purple-900/60 text-purple-300 font-tabular font-bold">ADMIN</span>
+          </div>
+          <div role="option" data-role="STATE_OFFICER" onclick="selectRole('STATE_OFFICER')" class="gov-role-item active">
+            <span>State Nodal Officer</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-blue-900/60 text-blue-300 font-tabular font-bold">STATE</span>
+          </div>
+          <div role="option" data-role="DISTRICT_OFFICER" onclick="selectRole('DISTRICT_OFFICER')" class="gov-role-item">
+            <span>District Collector / Land Officer</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-900/60 text-emerald-300 font-tabular font-bold">DISTRICT</span>
+          </div>
+          <div role="option" data-role="PROJECT_OFFICER" onclick="selectRole('PROJECT_OFFICER')" class="gov-role-item">
+            <span>Project Monitoring Officer</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-amber-900/60 text-amber-300 font-tabular font-bold">OFFICER</span>
+          </div>
+          <div role="option" data-role="AUDITOR" onclick="selectRole('AUDITOR')" class="gov-role-item">
+            <span>Statutory Auditor (Read-Only)</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-cyan-900/60 text-cyan-300 font-tabular font-bold">AUDITOR</span>
+          </div>
+          <div role="option" data-role="VIEWER" onclick="selectRole('VIEWER')" class="gov-role-item">
+            <span>Public Oversight (Viewer)</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 font-tabular font-bold">PUBLIC</span>
+          </div>
+        </div>
+
+        <!-- Hidden synchronized select element for testing & fallback -->
+        <select id="auth-role-select" onchange="switchAuthRole(this.value)" class="sr-only" aria-hidden="true">
           <option value="NATIONAL_ADMIN">National Admin (Central Ministry)</option>
-          <option value="STATE_OFFICER">State Nodal Officer</option>
+          <option value="STATE_OFFICER" selected>State Nodal Officer</option>
           <option value="DISTRICT_OFFICER">District Collector / Land Officer</option>
           <option value="PROJECT_OFFICER">Project Monitoring Officer</option>
           <option value="AUDITOR">Statutory Auditor (Read-Only)</option>
-          <option value="VIEWER" selected>Public Oversight (Viewer)</option>
+          <option value="VIEWER">Public Oversight (Viewer)</option>
         </select>
       </div>
 
       <span class="opacity-30">|</span>
 
-      <!-- Bilingual Toggle Button -->
-      <button onclick="toggleLanguage()" id="btn-language-toggle" class="gov-resizer-btn px-2 text-white" title="Switch Language / भाषा बदलें">हिन्दी</button>
+      <!-- Bilingual Language Toggle -->
+      <button onclick="toggleLanguage()" id="btn-language-toggle" class="gov-resizer-btn px-2 text-white font-bold" title="Switch Language / भाषा बदलें">English</button>
     </div>
   </div>
 
@@ -179,13 +218,13 @@
 
         <div class="flex flex-col min-w-0">
           <div class="flex items-center gap-2">
-            <span class="gov-prototype-pill">SIH 2026 PROTOTYPE • DEMONSTRATION ENVIRONMENT</span>
-            <span class="hidden lg:inline-block px-1.5 py-0.5 bg-[#ECFDF5] text-[#065F46] font-tabular-sm text-[9.5px] font-bold rounded">ZERO-LEAKAGE AI PIPELINE</span>
+            <span class="gov-prototype-pill" data-i18n="sih_prototype">SIH 2026 PROTOTYPE • DEMONSTRATION ENVIRONMENT</span>
+            <span class="hidden lg:inline-block px-1.5 py-0.5 bg-[#ECFDF5] text-[#065F46] font-tabular-sm text-[9.5px] font-bold rounded" data-i18n="zero_leakage_ai">ZERO-LEAKAGE AI PIPELINE</span>
           </div>
-          <h1 class="text-[19px] md:text-[21px] font-extrabold text-[#0A192F] tracking-tight leading-tight m-0 truncate">
+          <h1 class="text-[19px] md:text-[21px] font-extrabold text-[#0A192F] tracking-tight leading-tight m-0 truncate" data-i18n="platform_name">
             Infrastructure Delay &amp; Cost Overrun Intelligence Platform
           </h1>
-          <span class="text-[12px] text-[#42526E] font-semibold tracking-normal truncate">
+          <span class="text-[12px] text-[#42526E] font-semibold tracking-normal truncate" data-i18n="platform_sub">
             Predictive Monitoring • Early Warning • Decision Support
           </span>
         </div>
@@ -193,12 +232,12 @@
 
       <!-- Quick Actions / Freshness & Update Center trigger -->
       <div class="flex items-center gap-2 flex-shrink-0">
-        <button onclick="openDataUpdateCenter()" class="gov-btn gov-btn-secondary shadow-sm" title="Continuous Data Ingestion & Governance Center">
+        <button id="btn-data-center" onclick="openDataUpdateCenter()" class="gov-btn gov-btn-secondary shadow-sm" title="Continuous Data Ingestion & Governance Center">
           <span class="material-symbols-outlined text-[16px] text-[#0A192F]">cloud_sync</span>
-          <span class="hidden sm:inline">Data Center</span>
+          <span class="hidden sm:inline" data-i18n="data_center">Data Center</span>
         </button>
-        <button onclick="loadSummaryData()" class="w-8 h-8 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors" title="Refresh Live Feeds">
-          <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <button id="btn-header-refresh" onclick="refreshDashboardData()" class="w-8 h-8 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors" title="Refresh Live Feeds / डेटा रीफ्रेश करें">
+          <span class="material-symbols-outlined text-[18px]" id="header-refresh-icon">refresh</span>
         </button>
       </div>
     </div>
@@ -207,26 +246,29 @@
   <!-- Data Mode & Provenance System Strip -->
   <div class="px-4 md:px-8 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between overflow-x-auto whitespace-nowrap scrollbar-none text-xs">
     <div class="flex items-center gap-2">
-      <span class="font-tabular-sm text-slate-500 uppercase font-bold text-[10px]">Data Provenance:</span>
-      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] font-tabular-sm font-semibold text-[10.5px]">
-        <span class="material-symbols-outlined text-[12px]">verified</span>UPLOADED FILE
-      </span>
-      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#1E40AF] font-tabular-sm font-semibold text-[10.5px]">
-        <span class="material-symbols-outlined text-[12px]">account_tree</span>DERIVED
-      </span>
-      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#FFFBEB] text-[#92400E] font-tabular-sm font-semibold text-[10.5px]">
-        <span class="material-symbols-outlined text-[12px]">model_training</span>SIMULATION
-      </span>
+      <span class="font-tabular-sm text-slate-500 uppercase font-bold text-[10px]" data-i18n="data_provenance">Data Provenance:</span>
+      <button onclick="showProvenanceModal('uploaded')" class="gov-provenance-pill bg-[#ECFDF5] text-[#065F46]" title="Click to view Source Data Lineage">
+        <span class="material-symbols-outlined text-[12px]">verified</span>
+        <span data-i18n="uploaded_file">UPLOADED FILE</span>
+      </button>
+      <button onclick="showProvenanceModal('derived')" class="gov-provenance-pill bg-[#EFF6FF] text-[#1E40AF]" title="Click to view Derived Metrics Methodology">
+        <span class="material-symbols-outlined text-[12px]">account_tree</span>
+        <span data-i18n="derived">DERIVED</span>
+      </button>
+      <button onclick="showProvenanceModal('simulation')" class="gov-provenance-pill bg-[#FFFBEB] text-[#92400E]" title="Click to view What-If Simulation Model Rules">
+        <span class="material-symbols-outlined text-[12px]">model_training</span>
+        <span data-i18n="simulation">SIMULATION</span>
+      </button>
     </div>
 
     <!-- Telemetry pill -->
     <div class="flex items-center gap-2 text-slate-600 font-tabular-sm text-[11px]">
-      <span class="hidden md:inline">Source: <strong id="freshness-source" class="text-slate-900">MoSPI PAIMANA</strong></span>
+      <span class="hidden md:inline"><span data-i18n="source">Source:</span> <strong id="freshness-source" class="text-slate-900">MoSPI PAIMANA</strong></span>
       <span class="text-slate-300 hidden md:inline">•</span>
-      <span class="hidden sm:inline">Snapshot: <strong id="freshness-snapshot" class="text-slate-900">Validated Catalog</strong></span>
+      <span class="hidden sm:inline"><span data-i18n="snapshot">Snapshot:</span> <strong id="freshness-snapshot" class="text-slate-900">Validated Catalog</strong></span>
       <span class="text-slate-300 hidden sm:inline">•</span>
-      <span>Records: <strong id="freshness-records" class="text-slate-900">1,981</strong></span>
-      <span class="status-pill status-ready" id="freshness-status">ACTIVE</span>
+      <span><span data-i18n="records">Records:</span> <strong id="freshness-records" class="text-slate-900">1,981</strong></span>
+      <span class="status-pill status-ready" id="freshness-status" data-i18n="active">ACTIVE</span>
       <span class="hidden" id="freshness-api"></span>
     </div>
   </div>
@@ -240,44 +282,44 @@
         <li>
           <button onclick="switchNav('overview')" id="nav-overview" class="gov-nav-item-btn active" data-path="executive-overview">
             <span class="material-symbols-outlined text-[18px]">dashboard</span>
-            <span>Executive Overview</span>
+            <span data-i18n="nav_overview">Executive Overview</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('explorer')" id="nav-explorer" class="gov-nav-item-btn" data-path="master-explorer">
             <span class="material-symbols-outlined text-[18px]">dataset</span>
-            <span>Projects Explorer</span>
+            <span data-i18n="nav_explorer">Projects Explorer</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('evaluator')" id="nav-evaluator" class="gov-nav-item-btn" data-path="early-warning">
             <span class="material-symbols-outlined text-[18px]">warning</span>
-            <span>Early Warning</span>
+            <span data-i18n="nav_evaluator">Early Warning</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('simulator')" id="nav-simulator" class="gov-nav-item-btn" data-path="what-if-simulator">
             <span class="material-symbols-outlined text-[18px]">insights</span>
-            <span>Policy Simulator</span>
+            <span data-i18n="nav_simulator">Policy Simulator</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('alerts')" id="nav-alerts" class="gov-nav-item-btn" data-path="critical-alerts">
             <span class="material-symbols-outlined text-[18px]">crisis_alert</span>
-            <span>Critical Alerts</span>
+            <span data-i18n="nav_alerts">Critical Alerts</span>
             <span id="nav-alert-count" class="gov-nav-badge">12</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('land')" id="nav-land" class="gov-nav-item-btn" data-path="land-and-gis-demo">
             <span class="material-symbols-outlined text-[18px]">map</span>
-            <span>GIS &amp; Land Demo</span>
+            <span data-i18n="nav_land">GIS &amp; Land Demo</span>
           </button>
         </li>
         <li>
           <button onclick="switchNav('audit')" id="nav-audit" class="gov-nav-item-btn" data-path="data-audit">
             <span class="material-symbols-outlined text-[18px]">verified_user</span>
-            <span>Data Quality Audit</span>
+            <span data-i18n="nav_audit">Data Quality Audit</span>
           </button>
         </li>
       </ul>
@@ -335,11 +377,11 @@
             <div>
               <div class="gov-hero-eyebrow">
                 <span class="material-symbols-outlined text-[14px]">assured_workload</span>
-                <span id="hero-slide-eyebrow">National Infrastructure Monitoring</span>
+                <span id="hero-slide-eyebrow">National Highways & Expressways</span>
               </div>
-              <h2 class="gov-hero-title" id="hero-slide-title">Predict delays. Prevent overruns.</h2>
+              <h2 class="gov-hero-title" id="hero-slide-title">Building Faster, Safer Highway Corridors</h2>
               <p class="gov-hero-desc" id="hero-slide-desc">
-                Zero-leakage predictive intelligence and continuous land acquisition bottleneck detection for Central Sector infrastructure projects.
+                Real-time monitoring of Bharatmala expressways, corridor progress, land acquisition bottlenecks, and statutory clearance tracking across MoRTH and NHAI assets.
               </p>
             </div>
 
@@ -347,21 +389,21 @@
               <div class="gov-hero-stat-box" id="hero-stat-box">
                 <span class="gov-hero-stat-val" id="hero-stat-val">1,981</span>
                 <div>
-                  <div class="gov-hero-stat-label font-bold text-white" id="hero-stat-label">Total Monitored Projects</div>
-                  <div class="text-[11.5px] text-slate-300 font-tabular-sm" id="hero-stat-sub">Central Sector Capital Outlay: ₹42.78L Cr</div>
+                  <div class="gov-hero-stat-label font-bold text-white" id="hero-stat-label">Monitored Highway Corridors</div>
+                  <div class="text-[11.5px] text-slate-300 font-tabular-sm" id="hero-stat-sub">MoRTH & NHAI Active Portfolio: ₹12.4L Cr</div>
                 </div>
               </div>
 
               <div class="gov-hero-actions">
-                <button onclick="switchNav('evaluator')" class="px-4 py-2 bg-[#E06A1A] hover:bg-[#B84F0B] text-white font-label-md rounded font-bold flex items-center gap-1.5 shadow transition-all">
-                  <span class="material-symbols-outlined text-[16px]">crisis_alert</span>
-                  <span>Explore Project Risk</span>
+                <button id="hero-cta-primary" onclick="onHeroPrimaryCtaClick()" class="px-4 py-2 bg-[#E06A1A] hover:bg-[#B84F0B] text-white font-label-md rounded font-bold flex items-center gap-1.5 shadow transition-all" title="Explore active infrastructure sector projects">
+                  <span class="material-symbols-outlined text-[16px]" id="hero-cta-icon">add_road</span>
+                  <span id="hero-cta-text">Explore Highway Projects</span>
                 </button>
-                <button onclick="switchNav('explorer')" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-label-md rounded font-semibold flex items-center gap-1.5 transition-all">
+                <button onclick="switchNav('explorer')" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-label-md rounded font-semibold flex items-center gap-1.5 transition-all" title="Open Master Projects Explorer">
                   <span class="material-symbols-outlined text-[16px]">dataset</span>
-                  <span>Open Monitoring Dashboard</span>
+                  <span>Master Explorer</span>
                 </button>
-                <button id="hero-pause-btn" onclick="toggleHeroAutoplay()" class="p-2 bg-white/10 hover:bg-white/20 rounded border border-white/20 text-white" title="Pause / Resume Carousel">
+                <button id="hero-pause-btn" onclick="toggleHeroAutoplay()" class="p-2 bg-white/10 hover:bg-white/20 rounded border border-white/20 text-white" title="Pause / Resume Carousel" aria-label="Pause or resume auto-advancing carousel">
                   <span class="material-symbols-outlined text-[16px]" id="hero-pause-icon">pause</span>
                 </button>
               </div>
@@ -708,9 +750,9 @@
               <span class="hidden sm:inline">Select any record to view instant Explainable AI (SHAP) Waterfall Decomposition.</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <button id="btn-prev" class="px-3 py-1 bg-surface-container hover:bg-surface-container-high rounded font-label-md text-on-surface border border-outline-variant disabled:opacity-50">Prev</button>
+              <button id="btn-prev" onclick="changePage(-1)" class="px-3 py-1 bg-surface-container hover:bg-surface-container-high rounded font-label-md text-on-surface border border-outline-variant disabled:opacity-50">Prev</button>
               <span id="page-display" class="font-tabular-sm px-2 text-on-surface font-semibold">Page 1 / --</span>
-              <button id="btn-next" class="px-3 py-1 bg-primary text-on-primary hover:bg-primary-container rounded font-label-md font-semibold">Next</button>
+              <button id="btn-next" onclick="changePage(1)" class="px-3 py-1 bg-primary text-on-primary hover:bg-primary-container rounded font-label-md font-semibold">Next</button>
             </div>
           </div>
         </div>
@@ -820,6 +862,10 @@
             <!-- Action Buttons -->
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-surface-container">
               <button onclick="openSelectedProjectModal()" class="px-3.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-headline-sm text-body-sm rounded font-semibold border border-outline-variant">Open Full Dossier</button>
+              <button onclick="evaluateSelectedProject()" class="px-3.5 py-1.5 bg-secondary text-on-secondary hover:bg-secondary-container font-headline-sm text-body-sm rounded font-semibold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">warning</span>
+                <span>Evaluate Land Delay</span>
+              </button>
               <button onclick="simulateSelectedProject()" class="px-3.5 py-1.5 bg-primary text-on-primary hover:bg-primary-container font-headline-sm text-body-sm rounded font-semibold">Simulate Interventions</button>
             </div>
           </div>
@@ -852,32 +898,60 @@
               <span class="tag-badge tag-found">RFCTLARR 2013</span>
             </div>
             <p class="font-body-sm text-on-surface-variant mt-1">Simulate land parcel encumbrance and predict delay probability, expected timeline slippage, and statutory bottleneck stages before financial sanction.</p>
+
+            <!-- Active Project Context Banner (when loaded from Projects Explorer) -->
+            <div id="eval-project-banner" class="hidden mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded flex items-center justify-between text-xs text-blue-900">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="material-symbols-outlined text-[16px] text-blue-700 flex-shrink-0">inventory_2</span>
+                <span class="truncate"><strong>Catalog Project:</strong> <span id="eval-loaded-project-title"></span></span>
+              </div>
+              <button type="button" onclick="clearEvaluatorProjectContext()" class="text-blue-700 hover:text-blue-900 font-bold ml-2 text-[11px] underline flex-shrink-0">Clear Context</button>
+            </div>
           </div>
 
-          <div class="flex flex-col gap-3">
+          <form id="evaluator-form" onsubmit="event.preventDefault(); runEarlyWarningEvaluation();" class="flex flex-col gap-3" novalidate>
+            <!-- Project Search & Selection (Real MoSPI Catalog) -->
+            <div class="flex flex-col gap-1.5 p-2.5 bg-surface-container-low rounded border border-surface-container">
+              <div class="flex items-center justify-between">
+                <label for="eval-project-selector" class="font-label-md text-primary font-bold">SELECT MONITORED PROJECT</label>
+                <span class="text-[10px] text-secondary font-semibold font-tabular">1,981 PROJECTS</span>
+              </div>
+              <input type="text" id="eval-project-search" placeholder="Type project code or keyword to filter list..." oninput="filterEvaluatorProjects(this.value)" class="w-full h-8 bg-surface border border-outline-variant rounded px-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition-colors" />
+              <select id="eval-project-selector" onchange="onEvaluatorProjectSelected(this.value)" class="w-full h-[36px] bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors">
+                <option value="">-- Choose from registered projects --</option>
+              </select>
+            </div>
+
+            <!-- Sector Dropdown -->
             <div class="flex flex-col gap-1">
-              <label class="font-label-md text-on-surface-variant">PRIMARY SECTOR</label>
-              <select id="eval-sector" class="h-[38px] bg-surface border border-outline-variant rounded px-2 font-body-md text-on-surface focus:outline-none focus:border-primary">
+              <label for="eval-sector" class="font-label-md text-on-surface-variant">PRIMARY SECTOR <span class="text-error">*</span></label>
+              <select id="eval-sector" onchange="onEvalSectorChange()" class="h-[38px] bg-surface border border-outline-variant rounded px-2 font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors">
                 <option value="">Select Sector</option>
               </select>
+              <span id="err-eval-sector" class="text-[11px] text-error font-medium hidden">Please select a primary infrastructure sector.</span>
             </div>
 
+            <!-- Dependent Ministry Dropdown -->
             <div class="flex flex-col gap-1">
-              <label class="font-label-md text-on-surface-variant">LINE MINISTRY / NODAL AGENCY</label>
-              <select id="eval-ministry" class="h-[38px] bg-surface border border-outline-variant rounded px-2 font-body-md text-on-surface focus:outline-none focus:border-primary">
+              <label for="eval-ministry" class="font-label-md text-on-surface-variant">LINE MINISTRY / NODAL AGENCY <span class="text-error">*</span></label>
+              <select id="eval-ministry" onchange="validateField('eval-ministry')" class="h-[38px] bg-surface border border-outline-variant rounded px-2 font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors">
                 <option value="">Select Ministry</option>
               </select>
+              <span id="err-eval-ministry" class="text-[11px] text-error font-medium hidden">Please select a responsible line ministry.</span>
             </div>
 
+            <!-- Cost and Year Row -->
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1">
-                <label class="font-label-md text-on-surface-variant">SANCTIONED COST (₹ CR)</label>
-                <input id="eval-cost" type="number" step="0.01" min="1" placeholder="e.g. 2500" value="2500" class="h-[38px] bg-surface border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:border-primary"/>
+                <label for="eval-cost" class="font-label-md text-on-surface-variant">SANCTIONED COST (₹ CR) <span class="text-error">*</span></label>
+                <input id="eval-cost" type="number" step="0.01" min="1" max="1000000" placeholder="e.g. 2500" value="2500" oninput="validateField('eval-cost')" class="h-[38px] bg-surface border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors"/>
+                <span id="err-eval-cost" class="text-[11px] text-error font-medium hidden">Enter a valid cost (> ₹0 Cr).</span>
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="font-label-md text-on-surface-variant">SANCTION YEAR</label>
-                <input id="eval-year" type="number" min="2000" max="2035" value="2026" class="h-[38px] bg-surface border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:border-primary"/>
+                <label for="eval-year" class="font-label-md text-on-surface-variant">SANCTION YEAR <span class="text-error">*</span></label>
+                <input id="eval-year" type="number" min="2000" max="2050" value="2026" oninput="validateField('eval-year')" class="h-[38px] bg-surface border border-outline-variant rounded px-3 font-body-md text-on-surface focus:outline-none focus:border-primary transition-colors"/>
+                <span id="err-eval-year" class="text-[11px] text-error font-medium hidden">Enter year between 2000–2050.</span>
               </div>
             </div>
 
@@ -888,58 +962,82 @@
                 <span class="text-[10px] text-secondary font-semibold">DoLR PROTOCOL</span>
               </div>
 
+              <!-- Current Statutory Stage -->
               <div class="flex flex-col gap-1">
-                <label class="font-label-md text-on-surface-variant">CURRENT STATUTORY STAGE</label>
+                <label for="eval-stage-select" class="font-label-md text-on-surface-variant">CURRENT STATUTORY STAGE <span class="text-error">*</span></label>
                 <select id="eval-stage-select" class="h-[34px] bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface focus:outline-none">
-                  <option value="STAGE_COMPENSATION">Compensation Disbursement (Sec 23 &amp; 30)</option>
-                  <option value="STAGE_ADMIN_APPROVAL">Administrative Approval &amp; SIA (Sec 4 &amp; 11)</option>
-                  <option value="STAGE_VALUATION">Land Survey &amp; Valuation Award (Sec 19 &amp; 23)</option>
-                  <option value="STAGE_REHABILITATION">R&amp;R Scheme Gazette Notification (Sec 31)</option>
-                  <option value="STAGE_POSSESSION">Physical Possession &amp; Eviction (Sec 38)</option>
+                  <option value="STAGE_ADMIN_APPROVAL">1. Administrative Approval &amp; Section 11 Notification</option>
+                  <option value="STAGE_VALUATION">2. Land Survey &amp; Section 19 Valuation Award</option>
+                  <option value="STAGE_COMPENSATION" selected>3. Section 23 Compensation Disbursement</option>
+                  <option value="STAGE_REHABILITATION">4. Section 31 R&amp;R Resettlement Scheme</option>
+                  <option value="STAGE_POSSESSION">5. Section 37/38 Physical Possession &amp; Handover</option>
+                  <option value="STAGE_LEGAL_DISPUTES">6. Section 64 Reference &amp; Court Dispute Stays</option>
                 </select>
               </div>
 
+              <!-- Land Required and Acquired -->
               <div class="grid grid-cols-2 gap-2">
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">LAND REQUIRED (ACRES)</label>
-                  <input id="eval-land-req" type="number" step="0.1" value="125.0" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-land-req" class="font-label-md text-on-surface-variant text-[11px]">LAND REQUIRED (ACRES) <span class="text-error">*</span></label>
+                  <input id="eval-land-req" type="number" step="0.1" min="0.1" value="125.0" oninput="validateField('eval-land-req')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-land-req" class="text-[10px] text-error font-medium hidden">Must be > 0 acres.</span>
                 </div>
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">LAND ACQUIRED (%)</label>
-                  <input id="eval-land-acq" type="number" step="0.5" min="0" max="100" value="52.0" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-land-acq" class="font-label-md text-on-surface-variant text-[11px]">LAND ACQUIRED (%) <span class="text-error">*</span></label>
+                  <input id="eval-land-acq" type="number" step="0.5" min="0" max="100" value="52.0" oninput="validateField('eval-land-acq')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-land-acq" class="text-[10px] text-error font-medium hidden">Must be 0–100%.</span>
                 </div>
               </div>
 
+              <!-- Compensation and Legal Disputes -->
               <div class="grid grid-cols-2 gap-2">
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">COMPENSATION PAID (%)</label>
-                  <input id="eval-comp-disbursed" type="number" step="0.5" min="0" max="100" value="42.0" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-comp-disbursed" class="font-label-md text-on-surface-variant text-[11px]">COMPENSATION PAID (%) <span class="text-error">*</span></label>
+                  <input id="eval-comp-disbursed" type="number" step="0.5" min="0" max="100" value="42.0" oninput="validateField('eval-comp-disbursed')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-comp-disbursed" class="text-[10px] text-error font-medium hidden">Must be 0–100%.</span>
                 </div>
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">ACTIVE LEGAL DISPUTES</label>
-                  <input id="eval-disputes" type="number" min="0" max="50" value="2" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-disputes" class="font-label-md text-on-surface-variant text-[11px]">ACTIVE LEGAL DISPUTES <span class="text-error">*</span></label>
+                  <input id="eval-disputes" type="number" min="0" max="500" value="2" oninput="validateField('eval-disputes')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-disputes" class="text-[10px] text-error font-medium hidden">Must be integer ≥ 0.</span>
                 </div>
               </div>
 
+              <!-- PAF and R&R Package -->
               <div class="grid grid-cols-2 gap-2">
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">AFFECTED FAMILIES (PAF)</label>
-                  <input id="eval-families" type="number" min="0" value="180" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-families" class="font-label-md text-on-surface-variant text-[11px]">AFFECTED FAMILIES (PAF) <span class="text-error">*</span></label>
+                  <input id="eval-families" type="number" min="0" max="100000" value="180" oninput="validateField('eval-families')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-families" class="text-[10px] text-error font-medium hidden">Must be integer ≥ 0.</span>
                 </div>
                 <div class="flex flex-col gap-0.5">
-                  <label class="font-label-md text-on-surface-variant text-[11px]">R&amp;R PACKAGE (₹ CR)</label>
-                  <input id="eval-rehab-pkg" type="number" step="0.1" value="8.5" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <label for="eval-rehab-pkg" class="font-label-md text-on-surface-variant text-[11px]">R&amp;R PACKAGE (₹ CR) <span class="text-error">*</span></label>
+                  <input id="eval-rehab-pkg" type="number" step="0.1" min="0" max="100000" value="8.5" oninput="validateField('eval-rehab-pkg')" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                  <span id="err-eval-rehab-pkg" class="text-[10px] text-error font-medium hidden">Must be ≥ ₹0 Cr.</span>
                 </div>
               </div>
             </div>
 
             <input id="eval-quarter" type="hidden" value="3"/>
 
-            <button onclick="runEarlyWarningEvaluation()" class="w-full mt-1 h-10 bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-body-sm font-semibold rounded flex items-center justify-center gap-2 shadow-sm transition-colors">
-              <span class="material-symbols-outlined text-[18px]">psychology</span>
-              <span>Execute Land Acquisition Delay Evaluation</span>
-            </button>
-          </div>
+            <!-- Role Permission Banner (if Viewer) -->
+            <div id="eval-role-warning" class="hidden p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 flex items-start gap-2">
+              <span class="material-symbols-outlined text-[16px] text-amber-700 mt-0.5">lock</span>
+              <span><strong>Viewer Oversight Mode:</strong> Evaluator is in read-only observation mode. Switch role in top header to Officer or Admin to run live ML predictions.</span>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="flex items-center gap-2 mt-1">
+              <button type="submit" id="eval-btn-submit" class="flex-1 h-10 bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-body-sm font-semibold rounded flex items-center justify-center gap-2 shadow-sm transition-colors">
+                <span class="material-symbols-outlined text-[18px]" id="eval-btn-icon">psychology</span>
+                <span id="eval-btn-label">Execute Land Acquisition Delay Evaluation</span>
+              </button>
+              <button type="button" id="eval-btn-reset" onclick="resetEarlyWarningEvaluator()" class="h-10 px-3.5 bg-surface hover:bg-surface-container text-on-surface font-headline-sm text-body-sm font-semibold rounded border border-outline-variant flex items-center justify-center gap-1 transition-colors" title="Reset evaluator inputs to defaults">
+                <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                <span>Reset</span>
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- Evaluation Results Output (7 Cols) -->
@@ -949,6 +1047,14 @@
             <span class="material-symbols-outlined text-[48px] text-outline">analytics</span>
             <span class="font-headline-sm text-primary font-semibold">Awaiting Project &amp; Land Parameters</span>
             <p class="font-body-sm max-w-md">Configure proposed sector, capital cost, and statutory RFCTLARR land parameters, then execute predictive evaluation.</p>
+          </div>
+
+          <!-- Error State Display (Hidden by default) -->
+          <div id="eval-error-state" class="hidden p-6 rounded border border-error/40 bg-error-container/20 flex flex-col items-center justify-center text-center gap-3">
+            <span class="material-symbols-outlined text-[36px] text-error">error</span>
+            <span class="font-headline-sm text-error font-bold" id="eval-error-title">Evaluation Service Temporarily Unavailable</span>
+            <p class="font-body-sm text-on-surface-variant max-w-md" id="eval-error-desc">Unable to complete statutory risk evaluation. Please check inputs and retry.</p>
+            <button onclick="runEarlyWarningEvaluation()" class="px-4 py-1.5 bg-primary text-on-primary hover:bg-primary-container font-semibold rounded text-xs">Retry Evaluation</button>
           </div>
 
           <!-- Active Evaluation Output Container -->
@@ -963,8 +1069,28 @@
                 </div>
               </div>
               <div class="flex flex-col items-end">
-                <span class="tag-badge tag-found">MODEL PREDICTION</span>
+                <span class="tag-badge tag-found" id="eval-provenance-badge">ZERO-LEAKAGE MODEL</span>
                 <span id="eval-conf-score" class="text-xs font-tabular-sm font-bold mt-1">Confidence: 88.5%</span>
+              </div>
+            </div>
+
+            <!-- Derived Land Inception Metrics (4 Cards) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center p-3 bg-surface-container-low rounded border border-surface-container">
+              <div class="p-2 bg-white rounded border border-outline-variant/40 flex flex-col">
+                <span class="text-[10px] text-on-surface-variant uppercase font-semibold">Total Land</span>
+                <strong id="eval-metric-total-land" class="text-[13.5px] text-primary font-tabular">125.0 Acres</strong>
+              </div>
+              <div class="p-2 bg-white rounded border border-outline-variant/40 flex flex-col">
+                <span class="text-[10px] text-on-surface-variant uppercase font-semibold">Land Acquired</span>
+                <strong id="eval-metric-acq-land" class="text-[13.5px] text-emerald-700 font-tabular">65.0 Ac (52.0%)</strong>
+              </div>
+              <div class="p-2 bg-white rounded border border-outline-variant/40 flex flex-col">
+                <span class="text-[10px] text-on-surface-variant uppercase font-semibold">Land Pending</span>
+                <strong id="eval-metric-pending-land" class="text-[13.5px] text-amber-700 font-tabular">60.0 Ac (48.0%)</strong>
+              </div>
+              <div class="p-2 bg-white rounded border border-outline-variant/40 flex flex-col">
+                <span class="text-[10px] text-on-surface-variant uppercase font-semibold">Compensation Gap</span>
+                <strong id="eval-metric-comp-gap" class="text-[13.5px] text-error font-tabular">58.0% Pending</strong>
               </div>
             </div>
 
@@ -991,8 +1117,8 @@
               <div class="flex flex-col gap-1 mt-1">
                 <span class="font-label-md text-on-surface-variant text-[11px] uppercase">RFCTLARR Statutory Milestone Progression:</span>
                 <div class="grid grid-cols-5 gap-1 text-center font-tabular-sm text-[10px]">
-                  <div class="bg-[#059669] text-white p-1 rounded font-bold">1. Admin (Sec 4/11)</div>
-                  <div class="bg-[#059669] text-white p-1 rounded font-bold">2. Valuation (Sec 19)</div>
+                  <div id="stage-box-admin" class="bg-[#059669] text-white p-1 rounded font-bold">1. Admin (Sec 4/11)</div>
+                  <div id="stage-box-val" class="bg-[#059669] text-white p-1 rounded font-bold">2. Valuation (Sec 19)</div>
                   <div id="stage-box-comp" class="bg-[#BA1A1A] text-white p-1 rounded font-bold">3. Comp (Sec 23)</div>
                   <div id="stage-box-rehab" class="bg-surface-container text-on-surface-variant p-1 rounded font-bold">4. R&amp;R (Sec 31)</div>
                   <div id="stage-box-poss" class="bg-surface-container text-on-surface-variant p-1 rounded font-bold">5. Poss (Sec 38)</div>
@@ -1000,19 +1126,50 @@
               </div>
             </div>
 
-            <!-- Quantitative Risk Grid -->
-            <div class="grid grid-cols-2 gap-4">
+            <!-- Quantitative Risk Grid (3 Metric Cards) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="p-3 bg-surface-container-low rounded border border-surface-container">
-                <span class="font-label-md text-on-surface-variant block">DELAY PROBABILITY</span>
-                <span id="eval-prob-val" class="font-tabular-lg text-[26px] text-primary font-bold">78.4%</span>
-                <span class="font-body-sm text-error block mt-1">High statutory breach likelihood</span>
+                <span class="font-label-md text-on-surface-variant block text-xs">DELAY PROBABILITY</span>
+                <span id="eval-prob-val" class="font-tabular-lg text-[24px] text-primary font-bold">78.4%</span>
+                <span class="font-body-sm text-error block mt-1 text-[11px]">Statutory breach likelihood</span>
               </div>
 
               <div class="p-3 bg-surface-container-low rounded border border-surface-container">
-                <span class="font-label-md text-on-surface-variant block">PREDICTED TIMELINE SLIPPAGE</span>
-                <span id="eval-delay-val" class="font-tabular-lg text-[26px] text-primary font-bold">+184 Days</span>
-                <span id="eval-delay-sub" class="font-body-sm text-on-surface-variant block mt-1">Expected commissioning drift</span>
+                <span class="font-label-md text-on-surface-variant block text-xs">PREDICTED TIMELINE DRIFT</span>
+                <span id="eval-delay-val" class="font-tabular-lg text-[24px] text-primary font-bold">+184 Days</span>
+                <span id="eval-delay-sub" class="font-body-sm text-on-surface-variant block mt-1 text-[11px]">Expected commissioning drift</span>
               </div>
+
+              <div class="p-3 bg-surface-container-low rounded border border-surface-container">
+                <span class="font-label-md text-on-surface-variant block text-xs">COST OVERRUN RISK</span>
+                <span id="eval-cost-overrun-val" class="font-tabular-lg text-[24px] text-[#D97706] font-bold">MEDIUM RISK</span>
+                <span id="eval-cost-overrun-sub" class="font-body-sm text-on-surface-variant block mt-1 text-[11px]">₹0.0 Cr current drift</span>
+              </div>
+            </div>
+
+            <!-- Explainable AI: Contributing Factors Breakdown (WHY) -->
+            <div class="flex flex-col gap-2 p-3 bg-surface-container-low rounded border border-surface-container">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-headline-sm text-primary font-bold text-xs uppercase tracking-wide block">Contributing Risk Factors (Explainability)</span>
+                  <span class="text-[11px] text-on-surface-variant">Decomposition of overall risk into root drivers</span>
+                </div>
+                <span class="tag-badge tag-derived">DERIVED METRIC</span>
+              </div>
+              <div id="eval-risk-factors-breakdown" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs pt-1">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Structured Primary Risk Drivers Card -->
+            <div class="flex flex-col gap-2 p-3 bg-surface-container-low rounded border border-surface-container">
+              <div class="flex items-center justify-between">
+                <span class="font-headline-sm text-primary font-bold text-xs uppercase tracking-wide">Primary Risk Drivers</span>
+                <span class="tag-badge tag-found">STATUTORY ROOT CAUSE</span>
+              </div>
+              <ul id="eval-risk-drivers-list" class="space-y-1.5 text-xs text-on-surface-variant font-medium">
+                <!-- Injected dynamically -->
+              </ul>
             </div>
 
             <!-- SHAP Waterfall Feature Drivers -->
@@ -1035,6 +1192,25 @@
               <ul id="eval-recs-list" class="space-y-2 font-body-sm text-on-surface-variant">
                 <!-- Injected dynamically -->
               </ul>
+            </div>
+
+            <!-- Results Action Footer -->
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-container flex-wrap">
+              <button type="button" id="eval-btn-open-project" onclick="openEvaluatorProjectDossier()" class="px-3.5 py-1.5 bg-[#0F2847] text-white hover:bg-primary font-semibold rounded flex items-center gap-1.5 text-xs transition-colors shadow-sm" title="Open complete project dossier in Projects Explorer">
+                <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                <span>Open Project Dossier</span>
+              </button>
+              <button type="button" id="eval-btn-alert" onclick="addEvaluatorAlert()" class="px-3 py-1.5 bg-surface hover:bg-surface-container text-error font-semibold rounded border border-error/40 flex items-center gap-1 text-xs transition-colors" title="Create early-warning watchlist alert in central registry">
+                <span class="material-symbols-outlined text-[15px]">crisis_alert</span>
+                <span>Add to Critical Alerts</span>
+              </button>
+              <button type="button" id="eval-btn-simulate" onclick="simulateEvaluatorParameters()" class="px-3.5 py-1.5 bg-primary text-on-primary hover:bg-primary-container font-semibold rounded flex items-center gap-1.5 text-xs transition-colors shadow-sm" title="Hand off parameters to What-If Policy Simulator">
+                <span class="material-symbols-outlined text-[15px]">insights</span>
+                <span>Simulate Policy Interventions</span>
+              </button>
+              <button type="button" onclick="resetEarlyWarningEvaluator()" class="px-3 py-1.5 bg-surface hover:bg-surface-container text-on-surface-variant font-semibold rounded border border-outline-variant text-xs transition-colors" title="Clear current evaluation output">
+                <span>Clear</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1068,30 +1244,61 @@
             
             <div class="flex items-center justify-between">
               <span class="font-provenance-tag text-secondary uppercase font-semibold">Active Project Dossier</span>
-              <span class="tag-badge tag-found"><span class="material-symbols-outlined text-[11px]">verified</span>VERIFIED</span>
+              <span id="sim-project-status-badge" class="tag-badge tag-found"><span class="material-symbols-outlined text-[11px]">verified</span>VERIFIED</span>
+            </div>
+
+            <!-- Project Selector Dropdown to pick real project from database -->
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between">
+                <label class="font-label-md text-outline">SELECT REGISTERED PROJECT</label>
+                <span class="text-[10px] text-secondary font-semibold font-tabular">REAL PROJECTS</span>
+              </div>
+              <input type="text" id="sim-project-search" placeholder="Filter registered projects..." oninput="filterSimulatorProjects(this.value)" class="w-full h-8 bg-surface border border-outline-variant rounded px-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition-colors" />
+              <select id="sim-project-selector" onchange="onSimulatorProjectSelected(this.value)" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface focus:ring-1 focus:ring-primary">
+                <option value="705728">#705728 — Mumbai-Ahmedabad High Speed Rail Project (508 km)</option>
+                <option value="706718">#706718 — C/o NITB Imphal Airport</option>
+                <option value="701121">#701121 — New Domestic Terminal at Rajahmundry Airport</option>
+                <option value="612788">#612788 — Terminal Building Works at Belagavi Airport</option>
+                <option value="701107">#701107 — Integrated Terminal Building at Vijayawada Airport</option>
+                <option value="custom">-- Custom Scenario Model --</option>
+              </select>
             </div>
 
             <div>
-              <h2 id="sim-project-code-label" class="font-headline-md text-primary font-bold">NHAI-DL-2019-884</h2>
-              <p id="sim-project-name-label" class="font-body-sm text-on-surface-variant">Delhi-Amritsar-Katra Expressway Package IV</p>
+              <div class="flex items-center justify-between">
+                <h2 id="sim-project-code-label" class="font-headline-md text-primary font-bold">#705728</h2>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="openSelectedProjectModal()" class="px-2 py-0.5 bg-surface-container hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant font-semibold text-xs flex items-center gap-1" title="Open Complete Project Audit Dossier">
+                    <span class="material-symbols-outlined text-[13px]">docket</span>
+                    <span>Open Full Dossier</span>
+                  </button>
+                  <button type="button" onclick="evaluateSelectedProject(activeSimulationProjectCode || (selectedProject && selectedProject.project_code))" class="px-2 py-0.5 bg-secondary text-on-secondary hover:bg-secondary-container font-label-md rounded font-semibold text-xs flex items-center gap-1" title="Evaluate Land Acquisition Bottlenecks">
+                    <span class="material-symbols-outlined text-[13px]">warning</span>
+                    <span>Evaluate Land Delay</span>
+                  </button>
+                </div>
+              </div>
+              <p id="sim-project-name-label" class="font-body-sm text-on-surface-variant font-medium mt-0.5">Mumbai-Ahmedabad High Speed Rail Project- 508 km</p>
             </div>
 
             <!-- Inception baseline knobs/controls for custom simulation -->
             <div class="grid grid-cols-2 gap-2 pt-2 border-t border-surface-container">
               <div>
                 <label class="font-label-md text-on-surface-variant">SECTOR</label>
-                <select id="sim-sector" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface">
-                  <option value="Road Transport and Highways">Road Transport</option>
+                <select id="sim-sector" onchange="runSimulation()" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface">
                   <option value="Railways">Railways</option>
+                  <option value="Road Transport and Highways">Road Transport</option>
+                  <option value="Aviation & Aviation Infrastructure">Aviation</option>
                   <option value="Petroleum">Petroleum</option>
                   <option value="Power">Power</option>
                 </select>
               </div>
               <div>
                 <label class="font-label-md text-on-surface-variant">MINISTRY</label>
-                <select id="sim-ministry" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface">
-                  <option value="MoRTH">MoRTH</option>
+                <select id="sim-ministry" onchange="runSimulation()" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface">
                   <option value="Ministry of Railways">Railways</option>
+                  <option value="MoRTH">MoRTH</option>
+                  <option value="Ministry of Civil Aviation">Civil Aviation</option>
                   <option value="MoPNG">MoPNG</option>
                   <option value="Ministry of Power">Power</option>
                 </select>
@@ -1101,47 +1308,81 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="font-label-md text-on-surface-variant">COST (₹ CR)</label>
-                <input id="sim-cost" type="number" value="3500" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                <input id="sim-cost" type="number" value="108000" onchange="runSimulation()" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
               </div>
               <div>
-                <label class="font-label-md text-on-surface-variant">YEAR</label>
-                <input id="sim-year" type="number" value="2026" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
+                <label class="font-label-md text-on-surface-variant">COMPLETION YEAR</label>
+                <input id="sim-year" type="number" value="2029" onchange="runSimulation()" class="w-full h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-on-surface"/>
               </div>
             </div>
 
             <!-- Baseline Metrics -->
             <div class="grid grid-cols-2 gap-2 pt-2">
-              <div class="bg-surface-container-low p-2 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Baseline Delay Prob</span>
-                <span id="sim-base-prob" class="font-tabular-lg text-error font-bold">78.4%</span>
+              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
+                <span class="font-label-md text-outline block">Baseline Risk Prob</span>
+                <span id="sim-base-prob" class="font-tabular-lg text-error font-bold">50.7%</span>
               </div>
-              <div class="bg-surface-container-low p-2 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Expected Slippage</span>
-                <span id="sim-base-days" class="font-tabular-lg text-primary font-bold">+184 Days</span>
+              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
+                <span class="font-label-md text-outline block">Baseline Delay Exposure</span>
+                <span id="sim-base-days" class="font-tabular-lg text-primary font-bold">+853 Days</span>
+              </div>
+              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container col-span-2 flex items-center justify-between text-xs">
+                <span class="font-label-md text-outline">Baseline Cost Exposure</span>
+                <span id="sim-base-cost" class="font-tabular-sm text-primary font-bold">₹108,000.0 Cr</span>
               </div>
             </div>
 
             <!-- Baseline Tier Pill -->
             <div class="flex items-center justify-between text-xs pt-1">
-              <span class="text-on-surface-variant">Baseline Risk Tier:</span>
+              <span class="text-on-surface-variant">Baseline Risk Classification:</span>
               <span id="sim-base-tier" class="status-pill status-critical">HIGH RISK</span>
             </div>
           </div>
 
           <!-- Bottleneck Diagnostics Card -->
-          <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-2">
-            <span class="font-label-md text-outline uppercase">Bottleneck Diagnostics</span>
-            <div class="flex items-center justify-between py-1 text-body-sm border-b border-surface-container">
-              <span class="text-on-surface-variant">Land Acquisition (Sec 3D)</span>
-              <span class="font-tabular-sm text-error font-semibold">Stalled (14% Pending)</span>
+          <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-2.5">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-outline uppercase">Bottleneck Diagnostics</span>
+              <span class="text-[10px] text-secondary font-mono tracking-wider">PROJECT-LINKED</span>
             </div>
-            <div class="flex items-center justify-between py-1 text-body-sm border-b border-surface-container">
-              <span class="text-on-surface-variant">Environmental / Forest</span>
-              <span class="font-tabular-sm text-primary font-semibold">Stage-II Cleared</span>
+            <div class="flex items-center justify-between py-1.5 text-body-sm border-b border-surface-container">
+              <span class="text-on-surface-variant flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px] text-secondary">landscape</span>
+                <span>Land Acquisition (Sec 3D)</span>
+              </span>
+              <span id="sim-diag-land" class="font-tabular-sm text-error font-semibold">74.2% Acquired (25.8% Pending)</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 text-body-sm border-b border-surface-container">
+              <span class="text-on-surface-variant flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px] text-secondary">eco</span>
+                <span>Environmental / Forest</span>
+              </span>
+              <span id="sim-diag-env" class="font-tabular-sm text-primary font-semibold">Stage-II Cleared</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 text-body-sm border-b border-surface-container">
+              <span class="text-on-surface-variant flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px] text-secondary">gavel</span>
+                <span>Active Legal Disputes</span>
+              </span>
+              <span id="sim-diag-disputes" class="font-tabular-sm text-secondary font-semibold">0 Court Stays Active</span>
             </div>
             <div class="flex items-center justify-between py-1 text-body-sm">
-              <span class="text-on-surface-variant">Contractor Cashflow Stress</span>
-              <span class="font-tabular-sm text-error font-semibold">Severe Stress (-22%)</span>
+              <span class="text-on-surface-variant flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px] text-secondary">payments</span>
+                <span>Contractor Cashflow / Liquidity</span>
+              </span>
+              <span id="sim-diag-cashflow" class="font-tabular-sm text-error font-semibold">Severe Stress (-22%)</span>
+            </div>
+          </div>
+
+          <!-- SHAP Feature Attribution Drivers Card in Policy Simulator -->
+          <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-2.5">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-outline uppercase font-bold">SHAP Feature Attribution Drivers</span>
+              <span class="text-[10px] text-secondary font-mono tracking-wider font-semibold">PREDICTIVE IMPACT</span>
+            </div>
+            <div id="sim-shap-container" class="flex flex-col gap-2">
+              <div class="text-xs text-on-surface-variant py-2">Loading feature drivers...</div>
             </div>
           </div>
         </div>
@@ -1154,69 +1395,151 @@
                 <h3 class="font-headline-md text-primary font-bold">Policy Intervention Matrix</h3>
                 <p class="font-body-sm text-on-surface-variant">Select mitigation vectors to calculate instant delta projections.</p>
               </div>
-              <button onclick="resetSimulatorKnobs()" class="font-label-md text-secondary hover:underline">Reset All</button>
+              <button type="button" onclick="resetSimulatorKnobs()" class="px-2.5 py-1 bg-surface-container-low hover:bg-surface-container text-secondary text-xs rounded font-medium border border-outline-variant transition-colors">Reset All</button>
+            </div>
+
+            <!-- Error State Container -->
+            <div id="sim-error-box" class="hidden p-3 bg-error-container/30 border border-error/50 rounded text-xs text-error font-medium flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">error</span>
+              <span id="sim-error-msg">Simulation could not be completed.</span>
             </div>
 
             <div class="flex flex-col gap-2.5 mt-1">
               <!-- Knob 1: Land Possession -->
               <label class="flex items-start gap-3 p-3 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors">
-                <input id="sim-chk-land" type="checkbox" checked onchange="runSimulation()" class="mt-0.5 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
+                <input id="sim-chk-land" type="checkbox" checked onchange="runSimulation()" class="mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
                     <span class="font-headline-sm text-body-md text-primary font-semibold">Fast-track Section 3E/3F Possession</span>
-                    <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-45 Days</span>
+                    <div class="flex items-center gap-1.5">
+                      <span id="badge-elig-land" class="px-1.5 py-0.5 rounded bg-[#e8f5e9] text-[#2e7d32] text-[9px] font-bold uppercase">ELIGIBLE</span>
+                      <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-45 Days</span>
+                    </div>
                   </div>
                   <p class="font-body-sm text-on-surface-variant mt-0.5">District Magistrate direct requisition via emergency gazette notification.</p>
+                  <div class="flex items-center gap-3 text-[10px] text-secondary mt-1">
+                    <span>Authority: DM / CALA</span>
+                    <span>•</span>
+                    <span>Confidence: 88%</span>
+                  </div>
                 </div>
               </label>
 
               <!-- Knob 2: Funding Mobilization -->
               <label class="flex items-start gap-3 p-3 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors">
-                <input id="sim-chk-funding" type="checkbox" checked onchange="runSimulation()" class="mt-0.5 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
+                <input id="sim-chk-funding" type="checkbox" checked onchange="runSimulation()" class="mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
                     <span class="font-headline-sm text-body-md text-primary font-semibold">Mobilization Advance Injection (15%)</span>
-                    <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-30 Days</span>
+                    <div class="flex items-center gap-1.5">
+                      <span id="badge-elig-funding" class="px-1.5 py-0.5 rounded bg-[#e8f5e9] text-[#2e7d32] text-[9px] font-bold uppercase">ELIGIBLE</span>
+                      <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-30 Days</span>
+                    </div>
                   </div>
                   <p class="font-body-sm text-on-surface-variant mt-0.5">Instant liquidity infusion secured against bank guarantee for raw materials.</p>
+                  <div class="flex items-center gap-3 text-[10px] text-secondary mt-1">
+                    <span>Authority: Ministry Finance / PMG</span>
+                    <span>•</span>
+                    <span>Confidence: 84%</span>
+                  </div>
                 </div>
               </label>
 
               <!-- Knob 3: Clearance Acceleration -->
               <label class="flex items-start gap-3 p-3 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors">
-                <input id="sim-chk-clearance" type="checkbox" onchange="runSimulation()" class="mt-0.5 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
+                <input id="sim-chk-clearance" type="checkbox" onchange="runSimulation()" class="mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
                     <span class="font-headline-sm text-body-md text-primary font-semibold">Utility Shift Parallelization</span>
-                    <span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-tabular-sm text-[10px] font-bold">-25 Days</span>
+                    <div class="flex items-center gap-1.5">
+                      <span id="badge-elig-clearance" class="px-1.5 py-0.5 rounded bg-[#f3f4f6] text-[#4b5563] text-[9px] font-bold uppercase">CONDITIONAL</span>
+                      <span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-tabular-sm text-[10px] font-bold">-25 Days</span>
+                    </div>
                   </div>
                   <p class="font-body-sm text-on-surface-variant mt-0.5">Simultaneous relocation of high-tension power lines bypassing sequential clearances.</p>
+                  <div class="flex items-center gap-3 text-[10px] text-secondary mt-1">
+                    <span>Authority: State DISCOM / CEA</span>
+                    <span>•</span>
+                    <span>Confidence: 82%</span>
+                  </div>
                 </div>
               </label>
 
               <!-- Knob 4: Legal & Court Stay Vacation -->
               <label class="flex items-start gap-3 p-3 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors">
-                <input id="sim-chk-legal" type="checkbox" checked onchange="runSimulation()" class="mt-0.5 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
+                <input id="sim-chk-legal" type="checkbox" checked onchange="runSimulation()" class="mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
                     <span class="font-headline-sm text-body-md text-primary font-semibold">Special Arbitrage / Court Stay Vacation</span>
-                    <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-60 Days</span>
+                    <div class="flex items-center gap-1.5">
+                      <span id="badge-elig-legal" class="px-1.5 py-0.5 rounded bg-[#e8f5e9] text-[#2e7d32] text-[9px] font-bold uppercase">ELIGIBLE</span>
+                      <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-60 Days</span>
+                    </div>
                   </div>
                   <p class="font-body-sm text-on-surface-variant mt-0.5">Attorney General expedited bench listing for pending land injunctions.</p>
+                  <div class="flex items-center gap-3 text-[10px] text-secondary mt-1">
+                    <span>Authority: Attorney General / High Court</span>
+                    <span>•</span>
+                    <span>Confidence: 91%</span>
+                  </div>
                 </div>
               </label>
 
               <!-- Knob 5: Mandatory Double-Shift Working -->
               <label class="flex items-start gap-3 p-3 bg-surface-container-low rounded border border-surface-container cursor-pointer hover:bg-surface-container transition-colors">
-                <input id="sim-chk-shifts" type="checkbox" onchange="runSimulation()" class="mt-0.5 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
+                <input id="sim-chk-shifts" type="checkbox" onchange="runSimulation()" class="mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary"/>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
                     <span class="font-headline-sm text-body-md text-primary font-semibold">Mandatory Double-Shift Working</span>
-                    <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-24 Days</span>
+                    <div class="flex items-center gap-1.5">
+                      <span id="badge-elig-shifts" class="px-1.5 py-0.5 rounded bg-[#e8f5e9] text-[#2e7d32] text-[9px] font-bold uppercase">ELIGIBLE</span>
+                      <span class="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-tabular-sm text-[10px] font-bold">-24 Days</span>
+                    </div>
                   </div>
                   <p class="font-body-sm text-on-surface-variant mt-0.5">District magistrate noise-waiver exemption for 24x7 bridge & tunnel work.</p>
+                  <div class="flex items-center gap-3 text-[10px] text-secondary mt-1">
+                    <span>Authority: DM & Labour Commissioner</span>
+                    <span>•</span>
+                    <span>Confidence: 80%</span>
+                  </div>
                 </div>
               </label>
+            </div>
+
+            <!-- Action Button: Simulate Interventions -->
+            <div class="pt-2 border-t border-surface-container">
+              <button type="button" id="sim-btn-run" onclick="runSimulation()" class="w-full h-9 bg-primary text-on-primary font-headline-sm text-body-sm font-semibold rounded hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                <span class="material-symbols-outlined text-[18px]">tune</span>
+                <span id="sim-btn-run-text">Simulate Interventions</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Compact Before / After Comparison Grid -->
+          <div class="bg-surface-container-lowest p-3.5 rounded border border-outline-variant shadow-sm flex flex-col gap-2">
+            <span class="font-label-md text-outline uppercase">Scenario Comparison: Baseline vs Simulated</span>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="p-2 bg-surface-container-low rounded">
+                <span class="text-on-surface-variant block mb-1">Metric</span>
+                <span class="font-semibold text-on-surface block py-1 border-b border-surface-container">Schedule Delay</span>
+                <span class="font-semibold text-on-surface block py-1 border-b border-surface-container">Net Recovery</span>
+                <span class="font-semibold text-on-surface block py-1 border-b border-surface-container">Risk Tier</span>
+                <span class="font-semibold text-on-surface block py-1">Cost Averted</span>
+              </div>
+              <div class="p-2 bg-surface-container-low rounded">
+                <span class="text-on-surface-variant block mb-1">Baseline</span>
+                <span id="cmp-base-delay" class="font-tabular-sm text-error font-bold block py-1 border-b border-surface-container">+853 Days</span>
+                <span class="font-tabular-sm text-outline font-bold block py-1 border-b border-surface-container">0 Days</span>
+                <span id="cmp-base-risk" class="font-tabular-sm text-error font-bold block py-1 border-b border-surface-container">HIGH</span>
+                <span class="font-tabular-sm text-outline block py-1">₹0.0 Cr</span>
+              </div>
+              <div class="p-2 bg-primary/10 rounded border border-primary/20">
+                <span class="text-primary font-bold block mb-1">Simulated</span>
+                <span id="cmp-sim-delay" class="font-tabular-sm text-primary font-bold block py-1 border-b border-surface-container">+718 Days</span>
+                <span id="cmp-sim-recov" class="font-tabular-sm text-[#059669] font-bold block py-1 border-b border-surface-container">135 Days</span>
+                <span id="cmp-sim-risk" class="font-tabular-sm text-[#059669] font-bold block py-1 border-b border-surface-container">LOW</span>
+                <span id="cmp-sim-cost" class="font-tabular-sm text-primary font-bold block py-1">₹3,394.5 Cr</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1230,9 +1553,10 @@
             <div class="flex flex-col">
               <span class="font-label-md text-primary-fixed-dim">Cost Escalation Averted</span>
               <div class="flex items-baseline gap-2">
-                <span id="sim-cost-averted-val" class="font-tabular-lg text-[22px] text-on-primary font-bold">₹68.4 Cr. Saved</span>
-                <span class="font-provenance-tag text-[10px] text-[#34D399]">▲ 86% Conf.</span>
+                <span id="sim-cost-averted-val" class="font-tabular-lg text-[22px] text-on-primary font-bold">₹3,394.5 Cr. Saved</span>
+                <span id="sim-conf-badge" class="font-provenance-tag text-[10px] text-[#34D399]">▲ 88% Conf.</span>
               </div>
+              <span id="sim-cost-explanation" class="text-[10px] text-primary-fixed-dim mt-0.5">Calculated at 8.5% annual capital cost inflation.</span>
             </div>
 
             <div class="flex flex-col pt-2 border-t border-primary-fixed/20">
@@ -1243,16 +1567,16 @@
             <!-- Trajectory Progress Bar -->
             <div class="flex flex-col gap-1 pt-1">
               <div class="flex justify-between font-tabular-sm text-[10px] text-primary-fixed-dim">
-                <span>Baseline: +184d</span>
-                <span id="sim-mod-days" class="text-[#34D399] font-bold">Net: +49d</span>
+                <span id="sim-prog-base">Baseline: +853d</span>
+                <span id="sim-mod-days" class="text-[#34D399] font-bold">Net: +718d</span>
               </div>
               <div class="w-full bg-primary-container h-2 rounded overflow-hidden flex">
-                <div id="sim-trajectory-bar" class="bg-[#34D399] h-full" style="width: 73%;"></div>
+                <div id="sim-trajectory-bar" class="bg-[#34D399] h-full transition-all duration-300" style="width: 16%;"></div>
               </div>
             </div>
 
             <div class="flex items-center justify-between text-[11px] pt-1 border-t border-primary-fixed/20">
-              <span class="text-primary-fixed-dim">Residual Risk:</span>
+              <span class="text-primary-fixed-dim">Simulated Residual Risk:</span>
               <span id="sim-mod-tier" class="status-pill status-ontrack">LOW RISK</span>
               <span id="sim-mod-prob" class="hidden"></span>
               <span id="sim-pts-reduced" class="hidden"></span>
@@ -1265,18 +1589,26 @@
               <span class="material-symbols-outlined text-[16px]">verified_user</span>
               <span class="font-headline-sm text-body-sm font-bold uppercase">Institutional Directive</span>
             </div>
-            <p class="font-body-sm text-on-surface-variant leading-relaxed">
+            <p id="sim-directive-text" class="font-body-sm text-on-surface-variant leading-relaxed">
               Combination of Fast-track Possession and Special Arbitrage reduces residual risk below critical threshold. Immediate cabinet note circulation recommended.
             </p>
+            <button type="button" onclick="applySimulatorDirective()" class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant text-[11px] font-semibold self-start flex items-center gap-1 transition-colors" title="Activate interventions recommended by this directive">
+              <span class="material-symbols-outlined text-[13px] text-primary">bolt</span>
+              <span>Apply Directive to Matrix</span>
+            </button>
+            <div class="text-[10px] text-outline pt-1 border-t border-surface-container flex flex-col gap-0.5">
+              <span>Authority: <strong id="sim-directive-auth" class="text-on-surface">EGoS / Cabinet Secretariat</strong></span>
+              <span class="italic text-on-surface-variant/80">Scenario outputs are decision-support estimates and require competent authority review.</span>
+            </div>
           </div>
 
           <!-- Action Triggers -->
           <div class="flex flex-col gap-2">
-            <button onclick="submitInterventionEGoS()" class="w-full h-9 bg-primary text-on-primary font-headline-sm text-body-sm font-semibold rounded hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            <button id="btn-submit-egos" type="button" onclick="submitInterventionEGoS()" class="w-full h-9 bg-primary text-on-primary font-headline-sm text-body-sm font-semibold rounded hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5 shadow-sm">
               <span class="material-symbols-outlined text-[18px]">send</span>
               <span>Submit Intervention to EGoS</span>
             </button>
-            <button onclick="switchNav('alerts')" class="w-full h-9 bg-surface-container-low text-primary border border-outline-variant font-headline-sm text-body-sm font-semibold rounded hover:bg-surface-container transition-colors flex items-center justify-center gap-1.5">
+            <button id="btn-add-alert" type="button" onclick="addSimulatorProjectToAlerts()" class="w-full h-9 bg-surface-container-low text-primary border border-outline-variant font-headline-sm text-body-sm font-semibold rounded hover:bg-surface-container transition-colors flex items-center justify-center gap-1.5">
               <span class="material-symbols-outlined text-[18px]">crisis_alert</span>
               <span>Add to Critical Alerts</span>
             </button>
@@ -1397,126 +1729,331 @@
     </section>
 
     <!-- ======================================================================= -->
-    <!-- SECTION 6: LAND & GIS DEMONSTRATION (#tab-land)                         -->
+    <!-- SECTION 6: GIS SPATIAL INTELLIGENCE (#tab-land)                        -->
     <!-- ======================================================================= -->
-    <section id="tab-land" class="tab-pane flex flex-col gap-6">
+    <section id="tab-land" class="tab-pane flex flex-col gap-0" style="margin-top:-8px;">
 
-      <!-- Statutory Simulation Disclaimer Banner -->
-      <div class="w-full bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] p-4 rounded flex items-start gap-3">
-        <span class="material-symbols-outlined text-[#D97706] text-[24px]">map</span>
-        <div>
-          <span class="font-headline-sm font-bold block">[DEMONSTRATION DATASET: SIMULATED HISTORICAL LAND RECORDS] DoLR / MoRD Spatial Decision Intelligence</span>
-          <p class="font-body-sm mt-0.5">
-            Hierarchical GIS drill-down across <strong>India &rarr; State &rarr; District &rarr; Project</strong>. Isolates statutory bottlenecks (RFCTLARR Act 2013), compensation escrow progress, and active court disputes across 1,981 infrastructure corridors.
-          </p>
-        </div>
-      </div>
-
-      <!-- Hierarchical Drilldown Navigation Bar -->
-      <div class="bg-surface-container-low p-3.5 rounded border border-outline-variant flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <!-- Breadcrumb Tracker -->
-        <div class="flex items-center gap-2 flex-wrap font-headline-sm text-body-sm">
-          <span class="material-symbols-outlined text-primary text-[18px]">location_on</span>
-          <button onclick="gisNavigateNational()" class="text-primary font-bold hover:underline">India (National)</button>
-          <span id="gis-breadcrumb-state-sep" class="hidden text-outline-variant">&gt;</span>
-          <button id="gis-breadcrumb-state" onclick="gisNavigateState(currentGisState)" class="hidden text-primary font-bold hover:underline">State</button>
-          <span id="gis-breadcrumb-dist-sep" class="hidden text-outline-variant">&gt;</span>
-          <span id="gis-breadcrumb-dist" class="hidden text-secondary font-bold">District</span>
-        </div>
-
-        <!-- Quick Jurisdiction Selectors & Reset -->
-        <div class="flex items-center gap-2">
-          <select id="gis-state-select" onchange="gisSelectState(this.value)" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-primary font-semibold focus:outline-none">
-            <option value="">All States (34)</option>
-          </select>
-          <select id="gis-district-select" onchange="gisSelectDistrict(this.value)" class="h-8 bg-surface border border-outline-variant rounded px-2 font-body-sm text-primary font-semibold focus:outline-none" disabled>
-            <option value="">Select District</option>
-          </select>
-          <button onclick="gisNavigateNational()" class="px-3 py-1 bg-surface hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant">Reset View</button>
-        </div>
-      </div>
-
-      <!-- Map & Area Decision Panel Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        <!-- Left: Leaflet Interactive Map (8 Cols) -->
-        <div class="lg:col-span-8 bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-3">
-          <div class="flex items-center justify-between pb-2 border-b border-surface-container">
-            <div>
-              <span id="gis-map-title" class="font-headline-sm text-primary font-bold block">National Land Acquisition Delay Risk Map</span>
-              <span id="gis-map-subtitle" class="font-body-sm text-on-surface-variant">Click any state to drill down into districts; click a district to inspect individual project parcels.</span>
+      <!-- ── GIS Portal Header ─────────────────────────────────────────────── -->
+      <div class="gis-header-bar">
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="w-9 h-9 rounded bg-[#0b2545] text-[#96b9ff] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <span class="material-symbols-outlined text-[22px]">satellite_alt</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-[14px] text-[#071324] tracking-wide uppercase font-sans">GIS &amp; Spatial Intelligence</span>
+              <span class="gis-live-tag"><span class="gis-live-dot"></span>OPERATIONAL GIS</span>
             </div>
-            <span id="gis-current-level-tag" class="tag-badge tag-found">LEVEL 1: NATIONAL</span>
+            <div class="text-[11px] text-[#44474E] flex items-center gap-1.5 flex-wrap">
+              <span>National Infrastructure Monitoring Division · MoSPI PAIMANA Registry</span>
+              <span class="text-[#cbd5e1]">|</span>
+              <span class="text-[#92400e] font-medium bg-[#fff8e6] px-1.5 py-0.2 rounded border border-[#fde68a]">COORDINATES: DERIVED / SIMULATED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode Toggle & Global Filters -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- View Mode Toggle -->
+          <div class="gis-mode-toggle" id="gis-mode-toggle" role="tablist">
+            <button id="gis-mode-risk" onclick="gisSetMode('risk')" class="gis-mode-btn active" title="View by Schedule Delay & Disruption Severity">
+              <span class="material-symbols-outlined text-[14px]">warning</span> Delay Risk
+            </button>
+            <button id="gis-mode-land" onclick="gisSetMode('land')" class="gis-mode-btn" title="View by Land Acquisition & RoW Encumbrance">
+              <span class="material-symbols-outlined text-[14px]">landscape</span> Land Status
+            </button>
           </div>
 
-          <div id="leaflet-state-map" style="min-height: 480px; width: 100%;"></div>
+          <!-- Sector Selector -->
+          <select id="gis-sector-select" onchange="gisApplyFilters()" class="gis-select" title="Filter by Sector">
+            <option value="">All Sectors</option>
+            <option value="Roads & Highways">Roads &amp; Highways</option>
+            <option value="Railways">Railways</option>
+            <option value="Petroleum & Natural Gas">Petroleum &amp; Natural Gas</option>
+            <option value="Power & Renewable Energy">Power &amp; Renewable Energy</option>
+            <option value="Water & Sanitation">Water &amp; Sanitation</option>
+            <option value="Urban Development">Urban Development</option>
+            <option value="Shipping & Ports">Shipping &amp; Ports</option>
+            <option value="Civil Aviation">Civil Aviation</option>
+          </select>
+
+          <!-- Risk Selector -->
+          <select id="gis-risk-select" onchange="gisApplyFilters()" class="gis-select" title="Filter by Delay Risk Tier">
+            <option value="">All Risk Tiers</option>
+            <option value="CRITICAL">🔴 Critical Delay (&gt;730d)</option>
+            <option value="HIGH">🟠 High Delay (365–730d)</option>
+            <option value="MEDIUM">🟡 Medium Delay (90–365d)</option>
+            <option value="LOW">🟢 On Schedule (≤90d)</option>
+          </select>
+
+          <!-- Quick State Selector -->
+          <select id="gis-state-select" onchange="gisSelectState(this.value)" class="gis-select" title="Jump to State">
+            <option value="">All States (34)</option>
+          </select>
+          <select id="gis-district-select" onchange="gisSelectDistrict(this.value)" class="gis-select" disabled title="Jump to District">
+            <option value="">Select District</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Subheader Navigation & Breadcrumbs ─────────────────────────────── -->
+      <div class="gis-subbar">
+        <div class="flex items-center gap-1.5 text-[12px]" id="gis-breadcrumb-wrap">
+          <span class="text-[#5e6c84] text-[11px] font-bold uppercase tracking-wider mr-1">Jurisdiction:</span>
+          <button onclick="gisNavigateNational()" class="gis-breadcrumb-btn active" id="gis-bc-national">
+            <span class="material-symbols-outlined text-[14px]">public</span> India
+          </button>
+          <span id="gis-breadcrumb-state-sep" class="hidden text-[#94a3b8]">›</span>
+          <button id="gis-breadcrumb-state" onclick="gisNavigateState(currentGisState)" class="gis-breadcrumb-btn hidden"></button>
+          <span id="gis-breadcrumb-dist-sep" class="hidden text-[#94a3b8]">›</span>
+          <span id="gis-breadcrumb-dist" class="hidden gis-breadcrumb-leaf"></span>
         </div>
 
-        <!-- Right: Area Telemetry & Bottleneck Card (4 Cols) -->
-        <div class="lg:col-span-4 flex flex-col gap-4">
-          <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-3">
-            <div class="flex items-center justify-between pb-2 border-b border-surface-container">
-              <span class="font-label-md text-secondary uppercase font-bold">Area Telemetry Dossier</span>
-              <span id="gis-dossier-level" class="tag-badge tag-derived">PAN-INDIA</span>
+        <div class="flex items-center gap-2">
+          <span id="gis-current-level-tag" class="gis-level-tag">LEVEL 1: NATIONAL JURISDICTION</span>
+          <span class="text-[11px] text-[#5e6c84] hidden sm:inline" id="gis-active-filter-summary">Showing all 1,981 corridors</span>
+        </div>
+      </div>
+
+      <!-- ── Main Map + Dossier Grid ────────────────────────────────────────── -->
+      <div class="gis-workspace">
+
+        <!-- Map Column -->
+        <div class="gis-map-col">
+          <!-- Map Titlebar -->
+          <div class="gis-map-titlebar">
+            <div class="flex flex-col min-w-0">
+              <span id="gis-map-title" class="gis-map-title-text truncate">National Geospatial Infrastructure Intelligence Map</span>
+              <span id="gis-map-subtitle" class="gis-map-subtitle-text truncate">Interactive GPS multi-layer cartography · Marker clusters expand automatically · Click states or pins to drill down</span>
             </div>
 
-            <div>
-              <h3 id="gis-dossier-title" class="font-headline-md text-primary font-bold">National Infrastructure Overview</h3>
-              <p id="gis-dossier-subtitle" class="font-body-sm text-on-surface-variant">34 States &amp; UTs Monitored</p>
+            <!-- Integrated Map Toolbar Controls -->
+            <div class="gis-toolbar-controls">
+              <button onclick="gisResetIndia()" class="gis-ctrl-btn" title="Reset to India View (Default)">
+                <span class="material-symbols-outlined text-[16px]">home</span>
+                <span class="gis-btn-text">India</span>
+              </button>
+              <button onclick="gisWorldView()" class="gis-ctrl-btn" title="World Perspective View">
+                <span class="material-symbols-outlined text-[16px]">public</span>
+                <span class="gis-btn-text">World</span>
+              </button>
+              <button onclick="gisCenterLocation()" class="gis-ctrl-btn" title="Center on Capital / My Location">
+                <span class="material-symbols-outlined text-[16px]">my_location</span>
+              </button>
+              <button onclick="gisToggleLayersPanel()" id="gis-layers-toggle-btn" class="gis-ctrl-btn" title="Toggle Basemaps & Overlays">
+                <span class="material-symbols-outlined text-[16px]">layers</span>
+                <span class="gis-btn-text">Layers</span>
+              </button>
+              <button onclick="gisToggleFullscreen()" class="gis-ctrl-btn" title="Toggle Fullscreen Map">
+                <span class="material-symbols-outlined text-[16px]" id="gis-fullscreen-icon">fullscreen</span>
+              </button>
             </div>
+          </div>
 
-            <!-- Dominant Bottleneck Highlight -->
-            <div class="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded flex flex-col gap-1">
-              <span class="font-label-md text-[#92400E] font-bold uppercase text-[10px]">Dominant Statutory Delay Driver</span>
-              <span id="gis-dossier-driver" class="font-body-md font-bold text-primary">Compensation Disbursement (Sec 23 &amp; 30)</span>
-              <span class="text-xs text-on-surface-variant">SLA slippage in Section 23 award deposits to escrow.</span>
-            </div>
+          <!-- The Leaflet Map Container -->
+          <div class="gis-map-container" id="gis-map-wrapper">
+            <div id="leaflet-state-map"></div>
 
-            <!-- Quantitative Stats Grid -->
-            <div class="grid grid-cols-2 gap-2 pt-1">
-              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Total Projects</span>
-                <span id="gis-dossier-total" class="font-tabular-lg text-primary font-bold">1,981</span>
+            <!-- Floating Search Bar with Autocomplete Dropdown -->
+            <div class="gis-search-wrapper" id="gis-search-wrapper">
+              <div class="gis-search-bar" id="gis-search-bar">
+                <span class="material-symbols-outlined text-[#1d5f96] text-[18px]">search</span>
+                <input type="text" id="gis-search-input" placeholder="Search Project ID, Name, State, District, Sector, Ministry…"
+                  oninput="gisSearchInput(this.value)" onfocus="gisShowSearchResults()" autocomplete="off" class="gis-search-input"/>
+                <button onclick="gisClearSearch()" class="gis-search-clear hidden" id="gis-search-clear" title="Clear search">
+                  <span class="material-symbols-outlined text-[15px]">close</span>
+                </button>
               </div>
-              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Critical Breaches</span>
-                <span id="gis-dossier-critical" class="font-tabular-lg text-error font-bold">512</span>
+              <!-- Autocomplete Results Dropdown -->
+              <div id="gis-search-results" class="gis-search-results hidden"></div>
+            </div>
+
+            <!-- Floating Layers Panel (Toggleable) -->
+            <div class="gis-layers-panel hidden" id="gis-layers-panel">
+              <div class="gis-layers-header">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-[#071324] flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px] text-[#1d5f96]">layers</span> Map Layers &amp; Basemaps
+                </span>
+                <button onclick="gisToggleLayersPanel(false)" class="text-[#5e6c84] hover:text-[#071324]">
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+              <div class="gis-layers-section">
+                <div class="gis-layers-section-title">BASEMAP PROVIDER (LEGAL TILES)</div>
+                <label class="gis-layer-option">
+                  <input type="radio" name="gis-basemap-radio" value="voyager" checked onchange="gisSwitchBasemap(this.value)"/>
+                  <span><strong>CARTO Voyager</strong> (Google Maps-Style GPS Roads &amp; Landcover)</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="radio" name="gis-basemap-radio" value="satellite" onchange="gisSwitchBasemap(this.value)"/>
+                  <span><strong>Esri Satellite Hybrid</strong> (World Imagery + Road/Border Overlay)</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="radio" name="gis-basemap-radio" value="positron" onchange="gisSwitchBasemap(this.value)"/>
+                  <span><strong>CARTO Positron Light</strong> (Clean Minimal Administrative Cartography)</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="radio" name="gis-basemap-radio" value="osm" onchange="gisSwitchBasemap(this.value)"/>
+                  <span><strong>OpenStreetMap Standard</strong> (Community Topography)</span>
+                </label>
+              </div>
+
+              <div class="gis-layers-section">
+                <div class="gis-layers-section-title">INTELLIGENCE OVERLAYS</div>
+                <label class="gis-layer-option">
+                  <input type="checkbox" id="gis-layer-toggle-projects" checked onchange="gisToggleOverlay('projects', this.checked)"/>
+                  <span>Infrastructure Projects (Clusters &amp; GPS Pins)</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="checkbox" id="gis-layer-toggle-states" checked onchange="gisToggleOverlay('states', this.checked)"/>
+                  <span>State &amp; UT Administrative Boundaries</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="checkbox" id="gis-layer-toggle-critical" onchange="gisToggleOverlay('criticalOnly', this.checked)"/>
+                  <span>Critical Delay Alerts Only (Pulse Pins)</span>
+                </label>
+                <label class="gis-layer-option">
+                  <input type="checkbox" id="gis-layer-toggle-landrisk" onchange="gisToggleOverlay('landBottlenecksOnly', this.checked)"/>
+                  <span>Severe Land Acquisition Bottlenecks (&lt;50% Acquired)</span>
+                </label>
               </div>
             </div>
 
+            <!-- Floating Collapsible Legend (inside map, bottom-left) -->
+            <div class="gis-legend" id="gis-legend">
+              <div class="flex items-center justify-between pb-1 border-b border-[#e2e8f0] mb-1.5">
+                <div class="gis-legend-title" id="gis-legend-main-title">MAP INTELLIGENCE LEGEND</div>
+                <button onclick="gisToggleLegendMinimize()" class="text-[#94a3b8] hover:text-[#071324] text-[12px]" title="Collapse/Expand Legend">
+                  <span class="material-symbols-outlined text-[14px]" id="gis-legend-toggle-icon">unfold_less</span>
+                </button>
+              </div>
+
+              <div id="gis-legend-body">
+                <!-- Mode-specific legend container dynamically filled -->
+                <div id="gis-legend-dynamic-items">
+                  <div class="gis-legend-subtitle">PROJECT DELAY RISK TIER</div>
+                  <div class="gis-legend-item"><span class="gis-dot gis-dot-critical"></span><strong>Critical:</strong> Delay &gt;730d / Severe Injunction</div>
+                  <div class="gis-legend-item"><span class="gis-dot gis-dot-high"></span><strong>High:</strong> Delay 365–730d / Risk Breach</div>
+                  <div class="gis-legend-item"><span class="gis-dot gis-dot-medium"></span><strong>Medium:</strong> Delay 90–365d</div>
+                  <div class="gis-legend-item"><span class="gis-dot gis-dot-low"></span><strong>Low:</strong> On Schedule (≤90d)</div>
+                </div>
+
+                <div class="gis-legend-sep"></div>
+                <div class="gis-legend-subtitle">CLUSTERING &amp; PARCELS</div>
+                <div class="gis-legend-item">
+                  <span class="gis-legend-cluster-sample">[ 42 ]</span>
+                  <span>Regional Project Cluster (Expands on Zoom)</span>
+                </div>
+                <div class="gis-legend-item">
+                  <span class="gis-legend-pin-sample"></span>
+                  <span>Individual Project Corridor GPS Pin</span>
+                </div>
+
+                <div class="gis-legend-sep"></div>
+                <div class="text-[9px] text-[#64748b] uppercase tracking-wider font-semibold">
+                  Source: MoSPI PAIMANA · Coordinates: Derived/Simulated
+                </div>
+              </div>
+            </div>
+
+            <!-- Status Bar (inside map, bottom) -->
+            <div class="gis-status-bar" id="gis-status-bar">
+              <span class="gis-status-item">
+                <span class="material-symbols-outlined text-[13px] text-[#38bdf8]">location_on</span>
+                Projects Visible: <strong id="gis-stat-total">1,981</strong>
+              </span>
+              <span class="gis-status-sep">·</span>
+              <span class="gis-status-item text-[#fca5a5]">
+                Critical: <strong id="gis-stat-critical">556</strong>
+              </span>
+              <span class="gis-status-sep">·</span>
+              <span class="gis-status-item text-[#fde047]">
+                Delayed: <strong id="gis-stat-delayed">1,267</strong>
+              </span>
+              <span class="gis-status-sep">·</span>
+              <span class="gis-status-item text-[#93c5fd]">
+                States Covered: <strong id="gis-stat-states">34</strong>
+              </span>
+              <span class="gis-status-sep">·</span>
+              <span class="gis-status-item text-[#cbd5e1] hidden lg:inline">
+                Sanctioned Outlay: <strong id="gis-stat-cost">₹26.84 Lakh Cr</strong>
+              </span>
+              <span class="gis-status-sep hidden lg:inline">·</span>
+              <span class="gis-status-item text-[#94a3b8]">
+                <span class="material-symbols-outlined text-[12px]">verified_user</span>
+                Snapshot: <strong id="gis-stat-ts">MoSPI PAIMANA Registry</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dossier Panel (right column) -->
+        <div class="gis-dossier-col">
+          <div class="gis-dossier-card">
+            <!-- Dossier Header -->
+            <div class="flex items-center justify-between pb-2 border-b border-[#e6ebf1]">
+              <span class="text-[11px] font-bold uppercase tracking-widest text-[#42526e]">Area Intelligence Dossier</span>
+              <span id="gis-dossier-level" class="gis-level-tag">PAN-INDIA</span>
+            </div>
+
+            <!-- Dossier Title -->
+            <div class="mt-2">
+              <h3 id="gis-dossier-title" class="text-[15px] font-bold text-[#071324] leading-tight">National Infrastructure Overview</h3>
+              <p id="gis-dossier-subtitle" class="text-[11px] text-[#5e6c84] mt-0.5">34 States &amp; UTs Monitored</p>
+            </div>
+
+            <!-- Dominant Bottleneck -->
+            <div class="gis-bottleneck-box">
+              <div class="text-[9px] font-bold uppercase tracking-widest text-[#92400E] mb-1">Dominant Statutory Delay Driver</div>
+              <div id="gis-dossier-driver" class="text-[12px] font-bold text-[#071324]">Compensation Disbursement (Sec 23 &amp; 30)</div>
+              <div class="text-[10px] text-[#5e6c84] mt-0.5">SLA slippage in Section 23 award deposits to escrow</div>
+            </div>
+
+            <!-- Stats Grid -->
             <div class="grid grid-cols-2 gap-2">
-              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Avg Expected Delay</span>
-                <span id="gis-dossier-delay" class="font-tabular-lg text-primary font-bold">498 Days</span>
+              <div class="gis-stat-box">
+                <div class="gis-stat-label">Total Projects</div>
+                <div id="gis-dossier-total" class="gis-stat-value">1,981</div>
               </div>
-              <div class="bg-surface-container-low p-2.5 rounded border border-surface-container">
-                <span class="font-label-md text-outline block">Avg Land Acquired</span>
-                <span id="gis-dossier-acquired" class="font-tabular-lg text-[#059669] font-bold">58.4%</span>
+              <div class="gis-stat-box">
+                <div class="gis-stat-label">Critical Breaches</div>
+                <div id="gis-dossier-critical" class="gis-stat-value text-[#BA1A1A]">556</div>
+              </div>
+              <div class="gis-stat-box">
+                <div class="gis-stat-label">Avg Delay</div>
+                <div id="gis-dossier-delay" class="gis-stat-value">585 Days</div>
+              </div>
+              <div class="gis-stat-box">
+                <div class="gis-stat-label">Avg Land Acquired</div>
+                <div id="gis-dossier-acquired" class="gis-stat-value text-[#059669]">58.4%</div>
               </div>
             </div>
 
-            <!-- Dynamic Drilldown Child Items List -->
-            <div class="flex flex-col gap-1.5 pt-2 border-t border-surface-container">
-              <span id="gis-children-list-title" class="font-label-md text-primary font-bold">High-Risk Jurisdictions:</span>
-              <div id="gis-children-container" class="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto pr-1">
+            <!-- Drilldown List -->
+            <div class="border-t border-[#e6ebf1] pt-2 flex flex-col gap-1">
+              <div class="flex items-center justify-between">
+                <span id="gis-children-list-title" class="text-[11px] font-bold text-[#071324]">High-Risk Jurisdictions:</span>
+                <span class="text-[9px] text-[#5e6c84] uppercase tracking-wide">Click to drill down</span>
+              </div>
+              <div id="gis-children-container" class="flex flex-col gap-1 max-h-[220px] overflow-y-auto gis-children-scroll pr-0.5">
                 <!-- Injected dynamically -->
               </div>
             </div>
           </div>
         </div>
 
-      </div>
+      </div><!-- end .gis-workspace -->
 
-      <!-- Land Acquisition Telemetry Table -->
-      <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col gap-3">
-        <div class="flex items-center justify-between pb-2 border-b border-surface-container">
+      <!-- ── Land Acquisition Telemetry Table ───────────────────────────────── -->
+      <div class="gis-table-section">
+        <div class="flex items-center justify-between pb-2 border-b border-[#e6ebf1]">
           <div>
-            <span class="font-headline-sm text-primary font-bold block">Land Acquisition &amp; RoW Encumbrance Telemetry</span>
-            <span class="font-body-sm text-on-surface-variant">Demonstration Dataset: Simulated Historical Land Records mapped to verified MoSPI infrastructure projects.</span>
+            <div class="text-[13px] font-bold text-[#071324]">Land Acquisition &amp; RoW Encumbrance Telemetry</div>
+            <div class="text-[11px] text-[#5e6c84]">Demonstration dataset: Simulated historical land records mapped to verified MoSPI infrastructure projects</div>
           </div>
-          <span class="tag-badge tag-sim">SIMULATED HISTORICAL RECORDS</span>
+          <span class="gis-badge-sim">SIMULATED HISTORICAL RECORDS</span>
         </div>
-        <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+        <div class="overflow-x-auto max-h-[360px] overflow-y-auto">
           <table class="institutional-table">
             <thead>
               <tr>
@@ -1532,7 +2069,7 @@
               </tr>
             </thead>
             <tbody id="sim-tbody">
-              <tr><td colspan="9" class="text-center py-6 text-on-surface-variant font-body-md">Loading land telemetry...</td></tr>
+              <tr><td colspan="9" class="text-center py-6 text-[#5e6c84] text-[12px]">Select a district on the map to load land telemetry data…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1546,64 +2083,254 @@
     <section id="tab-audit" class="tab-pane flex flex-col gap-6">
 
       <!-- Header -->
-      <div class="pb-2 border-b border-surface-container flex items-center justify-between">
+      <div class="pb-2 border-b border-surface-container flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         <div>
-          <h2 class="font-headline-lg text-primary font-bold">Data Quality, Integrity & Model Architecture Audit</h2>
-          <p class="font-body-md text-on-surface-variant">Formal validation report tracking data anomalies, sentinel values, and zero-leakage ML pipeline metrics.</p>
-        </div>
-        <span class="tag-badge tag-found">STATUTORY AUDIT</span>
-      </div>
-
-      <!-- Data Hygiene Metric Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
-          <span class="font-label-md text-on-surface-variant uppercase">Sentinel Values (Cost=0)</span>
-          <span id="audit-sentinel-val" class="font-tabular-lg text-[24px] text-error font-bold mt-2">--</span>
-          <span class="font-body-sm text-on-surface-variant mt-1">Imputed via sector medians</span>
-        </div>
-
-        <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
-          <span class="font-label-md text-on-surface-variant uppercase">Missing Revised Dates</span>
-          <span id="audit-missing-dates-val" class="font-tabular-lg text-[24px] text-[#D97706] font-bold mt-2">--</span>
-          <span class="font-body-sm text-on-surface-variant mt-1">Flagged as unrevised drift</span>
-        </div>
-
-        <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
-          <span class="font-label-md text-on-surface-variant uppercase">Overspent Projects</span>
-          <span id="audit-overspent-val" class="font-tabular-lg text-[24px] text-primary font-bold mt-2">--</span>
-          <span class="font-body-sm text-on-surface-variant mt-1">Exp &gt; 100% of sanction</span>
-        </div>
-
-        <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
-          <span class="font-label-md text-on-surface-variant uppercase">Extreme Date Outliers</span>
-          <span id="audit-extreme-dates-val" class="font-tabular-lg text-[24px] text-primary font-bold mt-2">--</span>
-          <span class="font-body-sm text-on-surface-variant mt-1">Dates &gt; 2040 clipped</span>
-        </div>
-
-        <div class="bg-surface-container-lowest p-4 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
-          <span class="font-label-md text-on-surface-variant uppercase">Statistical Outliers</span>
-          <span id="audit-outliers-val" class="font-tabular-lg text-[24px] text-primary font-bold mt-2">--</span>
-          <span class="font-body-sm text-on-surface-variant mt-1">Winsorized at 99.5%</span>
-        </div>
-      </div>
-
-      <!-- Data Quality & Governance Summary Banner -->
-      <div class="bg-surface-container-lowest p-5 rounded border border-outline-variant shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669]">
-            <span class="material-symbols-outlined text-[28px]">verified</span>
+          <div class="flex items-center gap-2">
+            <h2 class="font-headline-lg text-primary font-bold">Data Quality, Integrity &amp; Operational Dataset Audit</h2>
+            <span class="tag-badge tag-found">STATUTORY AUDIT</span>
           </div>
+          <p class="font-body-md text-on-surface-variant">Real-time audit across 1,981 central sector projects &amp; DoLR land layers. Identifies missing fields, sentinels, fiscal variances, and anomaly distributions.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" onclick="exportDataQualityCSV()" class="px-3 py-1.5 bg-[#0F2847] hover:bg-primary text-white font-semibold rounded flex items-center gap-1.5 text-xs transition-colors shadow-sm" title="Export full CSV audit report">
+            <span class="material-symbols-outlined text-[16px]">download</span>
+            <span>Export Audit (CSV)</span>
+          </button>
+          <button type="button" onclick="loadDataQualityAudit()" class="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant font-semibold flex items-center gap-1 text-xs">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Refresh Quality Telemetry</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dashboard: Real Dataset Telemetry Metrics (8 Cards) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Total Records</span>
+          <span id="audit-total-records" class="font-tabular-lg text-[22px] text-primary font-bold mt-1">1,981</span>
+          <span class="text-[10px] text-on-surface-variant">Active catalog</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Valid Records</span>
+          <span id="audit-valid-records" class="font-tabular-lg text-[22px] text-[#059669] font-bold mt-1">857</span>
+          <span class="text-[10px] text-[#059669] font-medium">Clean records</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Invalid / Flagged</span>
+          <span id="audit-invalid-records" class="font-tabular-lg text-[22px] text-error font-bold mt-1">1,124</span>
+          <span class="text-[10px] text-error font-medium">Flagged sentinels</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Missing Fields</span>
+          <span id="audit-missing-fields" class="font-tabular-lg text-[22px] text-[#D97706] font-bold mt-1">1,027</span>
+          <span class="text-[10px] text-[#D97706] font-medium">Cost=0 / No Date</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Duplicate Records</span>
+          <span id="audit-duplicate-records" class="font-tabular-lg text-[22px] text-primary font-bold mt-1">0</span>
+          <span class="text-[10px] text-on-surface-variant">Unique IDs</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between col-span-2">
+          <div class="flex items-center justify-between">
+            <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Data Quality Score</span>
+            <span id="audit-health-badge" class="status-pill status-ontrack text-[9px]">EXCELLENT</span>
+          </div>
+          <span id="audit-quality-score" class="font-tabular-lg text-[24px] text-[#059669] font-bold mt-1">94.5%</span>
+          <span class="text-[10px] text-on-surface-variant">Zero duplicate project codes</span>
+        </div>
+
+        <div class="bg-surface-container-lowest p-3 rounded border border-outline-variant shadow-sm flex flex-col justify-between">
+          <span class="font-label-md text-on-surface-variant uppercase text-[10px]">Audit Status</span>
+          <span id="audit-status-badge" class="status-pill status-ontrack text-[9px] mt-1">MONITORED</span>
+          <span id="audit-last-update" class="text-[10px] text-on-surface-variant font-tabular">Updated Today</span>
+        </div>
+      </div>
+
+      <!-- Quality Breakdown: 5 Operational Dimensions -->
+      <div class="bg-surface-container-lowest p-5 rounded border border-outline-variant shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between pb-1 border-b border-surface-container">
+          <div>
+            <h3 class="font-headline-md text-primary font-bold text-sm">Quality Breakdown (5 Governance Dimensions)</h3>
+            <p class="font-body-sm text-on-surface-variant text-xs">Standardized measurement framework isolating completeness, consistency, validity, uniqueness, and statistical accuracy.</p>
+          </div>
+          <span class="tag-badge tag-found">STATUTORY STANDARDS</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <!-- 1. Completeness -->
+          <div class="p-3 bg-surface-container-low rounded border border-surface-container flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md font-bold text-primary text-xs">COMPLETENESS</span>
+              <span id="dq-score-completeness" class="font-tabular text-xs font-bold text-[#059669]">74.1%</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">Tracks presence of mandatory initial capital outlays and projected commissioning dates.</p>
+            <div class="pt-2 mt-2 border-t border-surface-container flex items-center justify-between text-[10px]">
+              <span class="text-on-surface-variant">Flagged Gaps:</span>
+              <strong id="dq-issues-completeness" class="font-tabular text-[#D97706]">1,027</strong>
+            </div>
+          </div>
+
+          <!-- 2. Consistency -->
+          <div class="p-3 bg-surface-container-low rounded border border-surface-container flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md font-bold text-primary text-xs">CONSISTENCY</span>
+              <span id="dq-score-consistency" class="font-tabular text-xs font-bold text-[#059669]">96.8%</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">Evaluates expenditure coherence against original sanctions (detects expenditures exceeding outlays).</p>
+            <div class="pt-2 mt-2 border-t border-surface-container flex items-center justify-between text-[10px]">
+              <span class="text-on-surface-variant">Overspent Projects:</span>
+              <strong id="dq-issues-consistency" class="font-tabular text-error">64</strong>
+            </div>
+          </div>
+
+          <!-- 3. Validity -->
+          <div class="p-3 bg-surface-container-low rounded border border-surface-container flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md font-bold text-primary text-xs">VALIDITY</span>
+              <span id="dq-score-validity" class="font-tabular text-xs font-bold text-[#059669]">97.9%</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">Validates calendar date bounds (≤ 2050), positive land acres, and bounded land progress (0–100%).</p>
+            <div class="pt-2 mt-2 border-t border-surface-container flex items-center justify-between text-[10px]">
+              <span class="text-on-surface-variant">Invalid Values:</span>
+              <strong id="dq-issues-validity" class="font-tabular text-[#D97706]">42</strong>
+            </div>
+          </div>
+
+          <!-- 4. Uniqueness -->
+          <div class="p-3 bg-surface-container-low rounded border border-surface-container flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md font-bold text-primary text-xs">UNIQUENESS</span>
+              <span id="dq-score-uniqueness" class="font-tabular text-xs font-bold text-[#059669]">100.0%</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">Verifies primary key integrity across MoSPI project code identifiers and project names.</p>
+            <div class="pt-2 mt-2 border-t border-surface-container flex items-center justify-between text-[10px]">
+              <span class="text-on-surface-variant">Duplicate Rows:</span>
+              <strong id="dq-issues-uniqueness" class="font-tabular text-[#059669]">0</strong>
+            </div>
+          </div>
+
+          <!-- 5. Accuracy -->
+          <div class="p-3 bg-surface-container-low rounded border border-surface-container flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md font-bold text-primary text-xs">ACCURACY</span>
+              <span id="dq-score-accuracy" class="font-tabular text-xs font-bold text-[#059669]">96.2%</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">Monitors statistical schedule drift and extreme cost escalation outliers exceeding 3σ thresholds.</p>
+            <div class="pt-2 mt-2 border-t border-surface-container flex items-center justify-between text-[10px]">
+              <span class="text-on-surface-variant">Statistical Outliers:</span>
+              <strong id="dq-issues-accuracy" class="font-tabular text-primary">150</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Issue Table Section & Functional Filters -->
+      <div class="bg-surface-container-lowest p-5 rounded border border-outline-variant shadow-sm flex flex-col gap-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-surface-container">
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-headline-sm text-primary font-bold">Overall Data Integrity Score:</span>
-              <span id="audit-quality-score" class="font-tabular-lg text-[22px] text-[#059669] font-bold">98.2%</span>
-              <span id="audit-health-badge" class="status-pill status-ontrack">EXCELLENT HEALTH</span>
+              <h3 class="font-headline-md text-primary font-bold text-sm">Data Issue &amp; Remediation Table</h3>
+              <span id="audit-issue-total-badge" class="tag-badge tag-found">1,477 DETECTED ISSUES</span>
             </div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">Computed dynamically across 1,981 central sector projects &amp; DoLR land acquisition layers. Zero duplicate project names detected.</p>
+            <p class="font-body-sm text-on-surface-variant text-xs">Programmatic itemization of actual data anomalies from the central sector database with statutory remediation workflow.</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button onclick="loadModelAudit()" class="px-3.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant font-semibold">Refresh Quality Telemetry</button>
+
+        <!-- Filter Bar -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 p-3 bg-surface-container-low rounded border border-surface-container">
+          <!-- Search -->
+          <div class="flex flex-col gap-1">
+            <label for="audit-filter-search" class="font-label-md text-on-surface-variant text-[11px]">SEARCH PROJECT / ISSUE</label>
+            <input type="text" id="audit-filter-search" placeholder="Code, title, or field..." oninput="debounceAuditSearch()" class="h-8 bg-surface border border-outline-variant rounded px-2 text-xs text-on-surface focus:outline-none focus:border-primary" />
+          </div>
+
+          <!-- Severity -->
+          <div class="flex flex-col gap-1">
+            <label for="audit-filter-severity" class="font-label-md text-on-surface-variant text-[11px]">SEVERITY</label>
+            <select id="audit-filter-severity" onchange="applyAuditFilters()" class="h-8 bg-surface border border-outline-variant rounded px-2 text-xs text-on-surface focus:outline-none">
+              <option value="ALL">All Severities</option>
+              <option value="CRITICAL">Critical</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+          </div>
+
+          <!-- Issue Type -->
+          <div class="flex flex-col gap-1">
+            <label for="audit-filter-type" class="font-label-md text-on-surface-variant text-[11px]">ISSUE TYPE</label>
+            <select id="audit-filter-type" onchange="applyAuditFilters()" class="h-8 bg-surface border border-outline-variant rounded px-2 text-xs text-on-surface focus:outline-none">
+              <option value="ALL">All Issue Types</option>
+              <option value="Sentinel Value">Sentinel Value (Cost=0)</option>
+              <option value="Consistency Flaw">Expenditure Overrun</option>
+              <option value="Completeness Gap">Missing Date</option>
+              <option value="Validity Violation">Validity Violation</option>
+              <option value="Statistical Outlier">Statistical Outlier</option>
+            </select>
+          </div>
+
+          <!-- Status -->
+          <div class="flex flex-col gap-1">
+            <label for="audit-filter-status" class="font-label-md text-on-surface-variant text-[11px]">REMEDIATION STATUS</label>
+            <select id="audit-filter-status" onchange="applyAuditFilters()" class="h-8 bg-surface border border-outline-variant rounded px-2 text-xs text-on-surface focus:outline-none">
+              <option value="ALL">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </div>
+
+          <!-- Reset Button -->
+          <div class="flex flex-col justify-end">
+            <button type="button" onclick="resetAuditFilters()" class="h-8 bg-surface hover:bg-surface-container text-on-surface font-semibold rounded border border-outline-variant text-xs flex items-center justify-center gap-1 transition-colors">
+              <span class="material-symbols-outlined text-[15px]">filter_alt_off</span>
+              <span>Reset Filters</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Issue Table -->
+        <div class="overflow-x-auto">
+          <table class="institutional-table text-xs">
+            <thead>
+              <tr>
+                <th class="w-[90px]">Project ID</th>
+                <th>Project Title &amp; Sector</th>
+                <th>Field</th>
+                <th>Issue Description</th>
+                <th>Severity</th>
+                <th>Current Value</th>
+                <th>Expected Format</th>
+                <th>Status</th>
+                <th class="w-[120px] text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="audit-issues-tbody">
+              <tr>
+                <td colspan="9" class="text-center py-8 text-on-surface-variant">
+                  <div class="flex flex-col items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-[28px] animate-spin text-primary">sync</span>
+                    <span>Loading authentic data quality audit records…</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-surface-container text-xs text-on-surface-variant">
+          <span id="audit-pagination-info">Showing 1–15 of 1,477 issues</span>
+          <div class="flex items-center gap-2">
+            <button type="button" id="audit-btn-prev" onclick="changeAuditPage(-1)" class="px-2.5 py-1 bg-surface border border-outline-variant rounded hover:bg-surface-container font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+            <span id="audit-page-num" class="font-tabular font-bold text-primary">Page 1 of 99</span>
+            <button type="button" id="audit-btn-next" onclick="changeAuditPage(1)" class="px-2.5 py-1 bg-surface border border-outline-variant rounded hover:bg-surface-container font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+          </div>
         </div>
       </div>
 
@@ -1892,13 +2619,54 @@
           <ul id="modal-recs-list" class="space-y-1.5 font-body-sm text-on-surface-variant"></ul>
         </div>
 
+        <!-- Statutory Land & Regulatory Compliance Audit Card -->
+        <div class="p-4 bg-surface-container-low rounded border border-surface-container flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="font-headline-sm text-primary font-bold">Statutory Land & Regulatory Compliance Audit</span>
+            <span class="tag-badge tag-found">SECTION 19 COMPLIANCE</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant">
+              <span class="font-label-md text-on-surface-variant block">LAND REQUIRED</span>
+              <strong id="modal-sim-land" class="font-tabular-md text-primary font-bold">--</strong>
+            </div>
+            <div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant">
+              <span class="font-label-md text-on-surface-variant block">POSSESSION STATUS</span>
+              <strong id="modal-sim-possession" class="font-tabular-md text-[#059669] font-bold">--</strong>
+            </div>
+            <div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant">
+              <span class="font-label-md text-on-surface-variant block">CLEARANCE STATUS</span>
+              <strong id="modal-sim-clearance" class="font-tabular-md text-primary font-bold">--</strong>
+            </div>
+            <div class="p-2.5 bg-surface-container-lowest rounded border border-outline-variant">
+              <span class="font-label-md text-on-surface-variant block">LEGAL DISPUTES</span>
+              <strong id="modal-sim-disputes" class="font-tabular-md text-secondary font-bold">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Footer -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-4 border-t border-surface-container">
+          <button type="button" onclick="auditProjectInDataQuality(activeModalProjectCode || (selectedProject && selectedProject.project_code))" class="px-3.5 py-2 bg-surface-container-low hover:bg-surface-container text-primary font-label-md rounded border border-outline-variant font-semibold flex items-center justify-center gap-1.5 text-xs transition-colors" title="Inspect Data Quality Audit anomalies for this project">
+            <span class="material-symbols-outlined text-[16px]">fact_check</span>
+            <span>View Data Quality Flags</span>
+          </button>
+          <div class="flex items-center justify-end gap-2">
+            <button onclick="closeModal()" class="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-primary font-body-sm rounded font-semibold border border-outline-variant">Close</button>
+            <button onclick="evaluateSelectedProject(activeModalProjectCode || (selectedProject && selectedProject.project_code)); closeModal();" class="px-4 py-2 bg-secondary text-on-secondary hover:bg-secondary-container font-body-sm rounded font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">warning</span>
+              <span>Evaluate Land Delay</span>
+            </button>
+            <button onclick="simulateSelectedProject(activeModalProjectCode || (selectedProject && selectedProject.project_code)); closeModal();" class="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container font-body-sm rounded font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">insights</span>
+              <span>Simulate Interventions</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Hidden modal elements for historical progression table bindings -->
         <div class="hidden">
-          <div id="modal-sim-land"></div>
           <div id="modal-sim-funding"></div>
-          <div id="modal-sim-clearance"></div>
-          <div id="modal-sim-disputes"></div>
-          <div id="modal-sim-possession"></div>
           <table id="modal-risk-tbody"></table>
           <table id="modal-history-tbody"></table>
         </div>
@@ -1918,7 +2686,13 @@
             <h3 class="font-headline-sm text-on-primary font-bold">MoSPI PAIMANA Data Update Center</h3>
           </div>
         </div>
-        <button onclick="closeDataUpdateCenter()" class="w-8 h-8 rounded flex items-center justify-center hover:bg-primary-container text-on-primary text-xl">✕</button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="refreshDataCenter()" class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-label-md rounded border border-outline-variant font-semibold text-xs flex items-center gap-1 transition-colors" title="Reload live data sources and snapshot feeds">
+            <span class="material-symbols-outlined text-[14px]">refresh</span>
+            <span>Refresh Data</span>
+          </button>
+          <button onclick="closeDataUpdateCenter()" class="w-8 h-8 rounded flex items-center justify-center hover:bg-primary-container text-on-primary text-xl">✕</button>
+        </div>
       </div>
 
       <!-- Modal Body -->
@@ -2022,6 +2796,402 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 3. Institutional Data Provenance Modal (#provenance-modal) -->
+  <div id="provenance-modal" class="gov-modal" style="display: none;">
+    <div class="gov-modal-dialog" style="max-width: 820px;">
+      <!-- Header -->
+      <div class="px-6 py-4 bg-[#0A192F] text-white flex items-center justify-between border-b border-slate-700 w-full">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-amber-400 text-[26px]">account_tree</span>
+          <div>
+            <span class="text-[11px] text-amber-400 uppercase tracking-wider font-bold block" data-i18n="data_provenance">Data Provenance Architecture</span>
+            <h3 class="text-[17px] font-extrabold text-white tracking-tight" id="prov-modal-title">Institutional Data Lineage &amp; Tier Classification</h3>
+          </div>
+        </div>
+        <button onclick="closeProvenanceModal()" class="w-8 h-8 rounded flex items-center justify-center hover:bg-slate-800 text-slate-300 text-xl font-bold">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 flex flex-col gap-6 overflow-y-auto max-h-[78vh] w-full text-sm">
+        <!-- 3 Tier Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Tier 1: Uploaded File -->
+          <div id="prov-card-uploaded" class="p-4 rounded border border-emerald-200 bg-emerald-50/70 flex flex-col gap-2 transition-all">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-emerald-700 text-[22px]">verified</span>
+              <span class="font-bold text-emerald-950 uppercase text-[12px]">Tier 1: UPLOADED FILE</span>
+            </div>
+            <p class="text-xs text-emerald-900 leading-relaxed">
+              Official central sector project baseline data extracted directly from the <strong>MoSPI PAIMANA Registry</strong>.
+            </p>
+            <div class="mt-auto pt-2 border-t border-emerald-200/80 text-[11px] text-emerald-800">
+              <div>• Project IDs, Names, Ministries</div>
+              <div>• Original &amp; Sanctioned Outlays (₹ Cr)</div>
+              <div>• Sanctioned Milestone End Dates</div>
+              <div>• Ground Geo-Coordinates &amp; Districts</div>
+            </div>
+          </div>
+
+          <!-- Tier 2: Derived Analytics -->
+          <div id="prov-card-derived" class="p-4 rounded border border-blue-200 bg-blue-50/70 flex flex-col gap-2 transition-all">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-blue-700 text-[22px]">calculate</span>
+              <span class="font-bold text-blue-950 uppercase text-[12px]">Tier 2: DERIVED</span>
+            </div>
+            <p class="text-xs text-blue-900 leading-relaxed">
+              Deterministic mathematical, statistical, and ML classifications computed from the verified source records.
+            </p>
+            <div class="mt-auto pt-2 border-t border-blue-200/80 text-[11px] text-blue-800">
+              <div>• Schedule Slippage (Days &amp; Months)</div>
+              <div>• Capital Cost Overrun (%)</div>
+              <div>• Trained ML Delay Probability &amp; Risk Tiers</div>
+              <div>• Contractor Cash-Flow Stress Indices</div>
+            </div>
+          </div>
+
+          <!-- Tier 3: Policy Simulation -->
+          <div id="prov-card-simulation" class="p-4 rounded border border-amber-200 bg-amber-50/70 flex flex-col gap-2 transition-all">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-700 text-[22px]">model_training</span>
+              <span class="font-bold text-amber-950 uppercase text-[12px]">Tier 3: SIMULATION</span>
+            </div>
+            <p class="text-xs text-amber-900 leading-relaxed">
+              Counterfactual "What-If" scenario models predicting recovery impact under specific administrative policy interventions.
+            </p>
+            <div class="mt-auto pt-2 border-t border-amber-200/80 text-[11px] text-amber-800">
+              <div>• Days Recovered from RFCTLARR Possession</div>
+              <div>• Capital Escalation Avoided (₹ Cr)</div>
+              <div>• Residual Risk Post-Intervention</div>
+              <div>• EGoS Institutional Directives</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statutory Provenance Watermark Notice -->
+        <div class="p-4 rounded bg-slate-100 border border-slate-300 text-xs text-slate-700 flex items-start gap-3">
+          <span class="material-symbols-outlined text-slate-600 text-[20px] flex-shrink-0">gavel</span>
+          <div>
+            <strong class="text-slate-900 block font-semibold mb-0.5">Statutory Decision Support Caveat:</strong>
+            Simulated and derived figures are strictly decision-support advisory estimates generated by verified AI models to guide inter-ministerial coordination under the PM GatiShakti framework. They do not constitute official statutory approvals or audit dispensations.
+          </div>
+        </div>
+
+        <!-- Provenance Traceability Details -->
+        <div class="flex flex-col gap-2">
+          <span class="font-bold text-slate-900 text-xs uppercase tracking-wider">Current Pipeline Telemetry</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+              <span class="text-[10.5px] text-slate-500 block">Ingested Records</span>
+              <strong class="text-[14px] text-slate-900 font-tabular">1,981 Assets</strong>
+            </div>
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+              <span class="text-[10.5px] text-slate-500 block">Checksum Integrity</span>
+              <strong class="text-[11px] text-emerald-700 font-tabular font-bold">SHA-256 Verified</strong>
+            </div>
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+              <span class="text-[10.5px] text-slate-500 block">Synthetic Leakage</span>
+              <strong class="text-[14px] text-emerald-700 font-tabular">0.0% (Zero)</strong>
+            </div>
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+              <span class="text-[10.5px] text-slate-500 block">Catalog Governance</span>
+              <strong class="text-[14px] text-slate-900 font-tabular">MoSPI OCMS</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button onclick="closeProvenanceModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs transition-colors">
+            Close Provenance Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- LEVEL 5: OFFICIAL AI INFRASTRUCTURE ASSISTANT (GOOGLE GEMINI POWERED)     -->
+  <!-- ========================================================================= -->
+  <!-- Floating Action Button (FAB) -->
+  <button id="gov-ai-assistant-fab" class="gov-assistant-fab" onclick="toggleAssistantDrawer()" title="AI Infrastructure Assistant (Google Gemini)" aria-label="Open AI Assistant" aria-expanded="false">
+    <div class="gov-assistant-fab-inner">
+      <span class="material-symbols-outlined text-[24px]">smart_toy</span>
+      <span class="gov-assistant-fab-badge" id="assistant-fab-status-dot" title="Connected to Google Gemini"></span>
+    </div>
+    <span class="gov-assistant-fab-text hidden md:inline">AI Assistant</span>
+  </button>
+
+  <!-- Sliding Assistant Drawer (Desktop Right Drawer / Mobile Fullscreen) -->
+  <div id="gov-ai-assistant-drawer" class="gov-assistant-drawer" aria-hidden="true" role="dialog" aria-label="Infrastructure AI Assistant">
+    <!-- Drawer Header -->
+    <div class="gov-assistant-header">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded bg-[#102a45] flex items-center justify-center text-white flex-shrink-0 shadow-sm">
+          <span class="material-symbols-outlined text-[19px]">psychology</span>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h2 class="text-[13.5px] font-bold text-[#071324] leading-tight truncate">Infrastructure Intelligence AI</h2>
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold tracking-wider font-tabular uppercase" id="assistant-header-model-badge">Gemini 2.5</span>
+          </div>
+          <span class="text-[10.5px] text-[#5e6c84] flex items-center gap-1">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" id="assistant-conn-indicator"></span>
+            <span id="assistant-status-desc">MoSPI PAIMANA Grounded Assistant</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <!-- Compact Mode Selector -->
+        <div class="relative">
+          <button onclick="toggleAssistantModeDropdown()" id="assistant-mode-btn" class="gov-assistant-mode-pill" title="Chat Retention Mode" aria-haspopup="true">
+            <span class="material-symbols-outlined text-[13px] text-blue-700" id="assistant-mode-icon">schedule</span>
+            <span id="assistant-mode-label" class="font-bold text-[10px] tracking-wider uppercase text-blue-900">30-Day</span>
+            <span class="material-symbols-outlined text-[12px] text-slate-400">expand_more</span>
+          </button>
+          <div id="assistant-mode-dropdown" class="gov-assistant-dropdown hidden shadow-lg">
+            <div class="px-2 py-1 text-[9.5px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">Select Retention Mode</div>
+            <button onclick="selectAssistantChatMode('temporary')" class="gov-assistant-dropdown-item" id="mode-opt-temporary">
+              <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+                <span class="material-symbols-outlined text-[14px] text-amber-600">lock_clock</span>
+                Temporary Chat
+              </div>
+              <div class="text-[9.5px] text-slate-500 pl-5">Session only. Not saved to history.</div>
+            </button>
+            <button onclick="selectAssistantChatMode('30-day')" class="gov-assistant-dropdown-item active" id="mode-opt-30-day">
+              <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+                <span class="material-symbols-outlined text-[14px] text-blue-600">schedule</span>
+                30-Day Chat (Default)
+              </div>
+              <div class="text-[9.5px] text-slate-500 pl-5">Auto-deleted after 30 days.</div>
+            </button>
+            <button onclick="selectAssistantChatMode('permanent')" class="gov-assistant-dropdown-item" id="mode-opt-permanent">
+              <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+                <span class="material-symbols-outlined text-[14px] text-emerald-600">bookmark</span>
+                Permanent Chat
+              </div>
+              <div class="text-[9.5px] text-slate-500 pl-5">Saved permanently until deleted.</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat History Button -->
+        <button onclick="toggleAssistantHistoryPanel()" class="gov-assistant-header-btn" title="AI Chat History" aria-label="Chat History" id="assistant-history-btn">
+          <span class="material-symbols-outlined text-[17px]">history</span>
+        </button>
+        <!-- New Chat Button -->
+        <button onclick="startNewAssistantChat()" class="gov-assistant-header-btn" title="Start New Conversation" aria-label="New Chat">
+          <span class="material-symbols-outlined text-[17px]">add_comment</span>
+        </button>
+        <!-- Clear Chat Button -->
+        <button onclick="clearAssistantChat()" class="gov-assistant-header-btn" title="Clear Conversation History" aria-label="Clear Chat">
+          <span class="material-symbols-outlined text-[17px]">delete_sweep</span>
+        </button>
+        <!-- Close Drawer Button -->
+        <button onclick="closeAssistantDrawer()" class="gov-assistant-header-btn text-[#BA1A1A] hover:bg-red-50" title="Close Panel (Esc)" aria-label="Close Assistant">
+          <span class="material-symbols-outlined text-[19px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Temporary Chat Privacy Banner -->
+    <div id="assistant-temporary-banner" class="gov-assistant-temp-banner hidden">
+      <div class="flex items-center gap-1.5 text-[11px] text-amber-900 font-medium">
+        <span class="material-symbols-outlined text-[14px] text-amber-700">lock_clock</span>
+        <span>Temporary chat • Not saved to history</span>
+      </div>
+      <button onclick="confirmDeleteCurrentTemporaryChat()" class="text-[10px] font-bold text-red-700 hover:text-red-900 underline ml-auto">
+        Delete Temporary Chat
+      </button>
+    </div>
+
+    <!-- Active Conversation Title & Quick Actions Bar -->
+    <div id="assistant-title-bar" class="gov-assistant-title-bar">
+      <div class="flex items-center gap-1.5 min-w-0 flex-1">
+        <span class="material-symbols-outlined text-[13px] text-slate-400 flex-shrink-0">chat_bubble_outline</span>
+        <span id="assistant-active-title" class="font-semibold text-slate-800 text-[11.5px] truncate cursor-pointer hover:text-blue-700" onclick="promptRenameCurrentChat()" title="Click to rename conversation">New Conversation</span>
+        <button onclick="promptRenameCurrentChat()" class="text-slate-400 hover:text-blue-600 flex-shrink-0" title="Rename Chat">
+          <span class="material-symbols-outlined text-[13px]">edit</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <button onclick="togglePermanentForActiveChat()" id="assistant-perm-toggle-btn" class="gov-assistant-perm-btn" title="Toggle Permanent Retention">
+          <span class="material-symbols-outlined text-[12.5px]" id="assistant-perm-icon">bookmark_border</span>
+          <span id="assistant-perm-label">Save Permanently</span>
+        </button>
+        <div class="relative">
+          <button onclick="toggleAssistantExportDropdown(event)" id="assistant-export-btn" class="gov-assistant-perm-btn" title="Export Conversation (TXT/JSON)">
+            <span class="material-symbols-outlined text-[12.5px]">download</span>
+            <span>Export</span>
+          </button>
+          <div id="assistant-export-dropdown" class="gov-assistant-dropdown hidden shadow-lg right-0 left-auto" style="min-width: 140px;">
+            <button onclick="exportActiveChat('txt')" class="gov-assistant-dropdown-item">
+              <div class="flex items-center gap-1.5 font-medium text-slate-800 text-[11px]">
+                <span class="material-symbols-outlined text-[13px] text-slate-500">description</span>
+                Export as TXT
+              </div>
+            </button>
+            <button onclick="exportActiveChat('json')" class="gov-assistant-dropdown-item">
+              <div class="flex items-center gap-1.5 font-medium text-slate-800 text-[11px]">
+                <span class="material-symbols-outlined text-[13px] text-blue-600">data_object</span>
+                Export as JSON
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sliding History Overlay Panel -->
+    <div id="assistant-history-panel" class="gov-assistant-history-panel hidden" aria-label="Chat History Panel">
+      <div class="gov-assistant-history-header">
+        <div class="flex items-center gap-1.5 font-bold text-[12.5px] text-[#071324]">
+          <span class="material-symbols-outlined text-[17px] text-blue-700">history</span>
+          <span>AI CHAT HISTORY</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button onclick="startNewAssistantChat(); closeAssistantHistoryPanel();" class="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 flex items-center gap-1 font-semibold">
+            <span class="material-symbols-outlined text-[13px]">add</span> + New Chat
+          </button>
+          <button onclick="closeAssistantHistoryPanel()" class="gov-assistant-header-btn" title="Close History">
+            <span class="material-symbols-outlined text-[17px]">close</span>
+          </button>
+        </div>
+      </div>
+      <!-- Search Input -->
+      <div class="p-2 border-b border-slate-200 bg-slate-50">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-[15px]">search</span>
+          <input 
+            type="text" 
+            id="assistant-history-search" 
+            placeholder="Search conversations..." 
+            class="w-full pl-8 pr-7 py-1.5 text-[11px] bg-white border border-slate-300 rounded focus:outline-none focus:border-blue-500"
+            oninput="handleAssistantSearchInput(this.value)"
+          />
+          <button onclick="clearAssistantSearch()" id="assistant-search-clear" class="absolute right-2 top-2 text-slate-400 hover:text-slate-600 hidden text-[13px]">
+            <span class="material-symbols-outlined text-[13px]">close</span>
+          </button>
+        </div>
+      </div>
+      <!-- History List (Grouped: Today, Yesterday, Previous 7 Days, Older) -->
+      <div class="gov-assistant-history-list" id="assistant-history-list">
+        <div class="p-4 text-center text-slate-400 text-xs">Loading conversations...</div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="assistant-delete-modal" class="gov-assistant-modal hidden" role="dialog" aria-modal="true" aria-labelledby="assistant-delete-title">
+      <div class="gov-assistant-modal-backdrop" onclick="closeAssistantDeleteModal()"></div>
+      <div class="gov-assistant-modal-box">
+        <div class="flex items-center gap-2 text-red-600 font-bold text-[13px] mb-2" id="assistant-delete-title">
+          <span class="material-symbols-outlined text-[18px]">warning</span>
+          Confirm Conversation Deletion
+        </div>
+        <p class="text-[11.5px] text-slate-700 mb-4 leading-relaxed">
+          Delete this conversation permanently? This action cannot be undone.
+        </p>
+        <div class="flex items-center justify-end gap-2">
+          <button onclick="closeAssistantDeleteModal()" class="px-2.5 py-1 text-[11px] rounded border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium">
+            Cancel
+          </button>
+          <button onclick="executeConfirmedDeleteConversation()" class="px-2.5 py-1 text-[11px] rounded bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1 shadow-sm">
+            <span class="material-symbols-outlined text-[13px]">delete</span> Delete Permanently
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Viewport Context Bar -->
+    <div class="gov-assistant-context-bar" id="assistant-context-bar">
+      <div class="flex items-center gap-1.5 text-[11px] text-[#0A192F] truncate">
+        <span class="material-symbols-outlined text-[13px] text-[#059669]">pin_drop</span>
+        <span class="font-bold">Active View:</span>
+        <span id="assistant-context-tab-label" class="font-medium text-[#1E40AF]">Executive Overview</span>
+        <span class="text-slate-300">•</span>
+        <span id="assistant-context-project-label" class="text-slate-600 truncate italic">No project focused</span>
+      </div>
+    </div>
+
+    <!-- Suggested Quick Action Chips -->
+    <div class="gov-assistant-chips-bar" id="assistant-chips-container">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1 mr-1">Prompts:</span>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">Summarize this project</button>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">Why is this project delayed?</button>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">Explain RFCTLARR land bottlenecks</button>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">What are the critical alerts?</button>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">Explain SHAP factors in simple terms</button>
+      <button onclick="sendAssistantSuggestedPrompt(this.innerText)" class="gov-assistant-chip">Is project ka delay kyu hua?</button>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="gov-assistant-messages" id="assistant-messages-container" role="log" aria-live="polite">
+      <!-- Welcome Message Card -->
+      <div class="gov-assistant-msg assistant-entry" id="assistant-welcome-msg">
+        <div class="gov-assistant-msg-avatar">
+          <span class="material-symbols-outlined text-[16px]">smart_toy</span>
+        </div>
+        <div class="gov-assistant-msg-body">
+          <div class="text-[12px] font-bold text-[#071324] mb-1">Namaste! Welcome to MoSPI Infrastructure AI Assistant.</div>
+          <p class="text-[11.5px] text-slate-700 leading-relaxed mb-2">
+            I am a real Google Gemini-powered intelligence assistant grounded in the official <strong>1,981 infrastructure project records</strong> and ML predictive models of MoSPI OCMS.
+          </p>
+          <div class="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded p-2 mb-2 flex flex-col gap-1">
+            <div class="flex items-center gap-1 font-semibold text-slate-800">
+              <span class="material-symbols-outlined text-[13px] text-blue-600">verified</span> Grounded Capabilities:
+            </div>
+            <div>• Real database queries for delay, sanctioned vs. revised costs, expenditure</div>
+            <div>• Explaining ML delay probability, duration, and SHAP risk drivers</div>
+            <div>• RFCTLARR statutory land acquisition stage bottlenecks (Sec 4 to 38)</div>
+            <div>• Interactive dashboard navigation across Explorer, Early Warning, &amp; Simulator</div>
+            <div>• Multilingual support: ask in <strong>English, हिन्दी, or Hinglish</strong></div>
+          </div>
+          <div class="text-[10px] text-slate-400 italic">
+            Select a project anywhere in the portal to anchor questions to "this project", or click a suggested prompt above.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing / Execution Indicator -->
+    <div class="gov-assistant-typing hidden" id="assistant-typing-indicator" aria-hidden="true">
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span class="gov-typing-dot"></span>
+        <span class="gov-typing-dot"></span>
+        <span class="gov-typing-dot"></span>
+        <span id="assistant-typing-status-text">Gemini is analyzing infrastructure telemetry...</span>
+      </div>
+      <button onclick="stopAssistantGeneration()" id="assistant-stop-btn" class="gov-assistant-stop-btn text-[11px] px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-100 flex items-center gap-1">
+        <span class="material-symbols-outlined text-[13px]">stop</span> Stop
+      </button>
+    </div>
+
+    <!-- Input Footer -->
+    <div class="gov-assistant-input-wrap">
+      <form id="assistant-input-form" onsubmit="handleAssistantSubmit(event)" class="flex flex-col gap-1.5">
+        <div class="gov-assistant-textarea-container">
+          <textarea 
+            id="assistant-input-text" 
+            class="gov-assistant-textarea" 
+            placeholder="Ask a question about project delays, land issues, or policy (English/हिन्दी)..."
+            rows="1"
+            maxlength="2000"
+            onkeydown="handleAssistantInputKeydown(event)"
+            oninput="autoResizeAssistantInput(this)"
+            aria-label="Assistant question input"
+          ></textarea>
+          <button type="submit" id="assistant-send-btn" class="gov-assistant-send-btn" title="Send message (Enter)" aria-label="Send message">
+            <span class="material-symbols-outlined text-[18px]">send</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-slate-400 px-1">
+          <span>Shift + Enter for new line</span>
+          <span class="font-tabular" id="assistant-char-counter">0 / 2000</span>
+        </div>
+      </form>
     </div>
   </div>
 

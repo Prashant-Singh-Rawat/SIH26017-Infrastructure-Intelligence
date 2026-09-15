@@ -34,14 +34,15 @@ class SimulateRequest(StrictBaseModel):
     fast_track_clearance: bool = Field(False, description="Apply single-window fast track clearance")
     advance_land_row: bool = Field(False, description="Apply advance 100% RoW possession")
     milestone_funding: bool = Field(False, description="Apply milestone tranche disbursement")
-    # Land Intervention Levers
-    resolve_disputes: bool = Field(False, description="Constitute Section 64 Lok Adalat fast-track tribunal")
+    # Land & Policy Intervention Levers
+    resolve_disputes: bool = Field(False, description="Constitute Section 64 Lok Adalat fast-track tribunal / Special Arbitration")
     dbt_compensation_release: bool = Field(False, description="PFMS direct escrow compensation release")
-    drone_possession_handover: bool = Field(False, description="Accelerated Section 38 drone boundary demarcation")
+    drone_possession_handover: bool = Field(False, description="Accelerated Section 38 drone boundary demarcation / Double-shift")
     project_code: Optional[int] = Field(None, description="Optional project code for context")
     land_required_acres: Optional[float] = Field(None, ge=0.0, description="Land required in acres")
     land_acquired_pct: Optional[float] = Field(None, ge=0.0, le=100.0, description="Current land acquired %")
     active_legal_disputes: Optional[int] = Field(None, ge=0, description="Active disputes count")
+    baseline_delay_days: Optional[float] = Field(None, ge=0.0, description="Optional baseline delay days override from project record")
 
 class EGoSDispatchPayload(StrictBaseModel):
     project_code: Optional[int] = Field(None, description="Project code")
@@ -78,6 +79,10 @@ class SnapshotIngestPayload(StrictBaseModel):
     csv_content: Optional[str] = Field(None, description="Raw CSV string content of the snapshot file")
     notes: Optional[str] = Field(None, max_length=500, description="Administrative ingestion notes")
 
+class IssueStatusUpdateRequest(StrictBaseModel):
+    status: str = Field(..., pattern="^(Open|Under Review|Resolved|OPEN|UNDER_REVIEW|RESOLVED)$", description="Remediation status")
+    notes: Optional[str] = Field(None, max_length=500, description="Remediation notes")
+
 class ErrorDetail(StrictBaseModel):
     code: str
     message: str
@@ -86,3 +91,4 @@ class ErrorDetail(StrictBaseModel):
 
 class ErrorResponse(StrictBaseModel):
     error: ErrorDetail
+

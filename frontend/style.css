@@ -977,11 +977,37 @@ body.font-lg { font-size: 16px; }
   .gov-footer-container {
     grid-template-columns: 1fr;
   }
+  .gov-hero-showcase {
+    flex-direction: column;
+    min-height: auto;
+  }
   .gov-hero-content {
-    padding: 20px;
+    padding: 24px 18px;
+    max-width: 100%;
+  }
+  .gov-hero-title {
+    font-size: 20px;
+  }
+  .gov-hero-desc {
+    font-size: 13px;
   }
   .gov-hero-rail {
-    display: none;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    margin-left: 0;
+    width: 100%;
+    padding: 10px 16px;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    overflow-x: auto;
+    gap: 8px;
+  }
+  .gov-hero-thumb {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
   }
 }
 
@@ -1285,4 +1311,1216 @@ body.font-lg { font-size: 16px; }
 
 .transition-all { transition-property: all !important; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important; transition-duration: 150ms !important; }
 .transition-colors { transition-property: color, background-color, border-color !important; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important; transition-duration: 150ms !important; }
+
+/* =========================================================================
+   GIS SPATIAL INTELLIGENCE PORTAL — Professional Design System
+   DoLR / MoSPI Infrastructure Monitoring — SIH26017
+   ========================================================================= */
+
+.gis-header-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: #ffffff; border: 1px solid #d2d8e2;
+  border-radius: 6px 6px 0 0; border-bottom: 2px solid #1d5f96;
+  gap: 12px; flex-wrap: wrap;
+}
+.gis-breadcrumb-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 600; color: #1d5f96;
+  background: transparent; border: none; cursor: pointer;
+  padding: 2px 4px; border-radius: 3px; transition: background 0.15s;
+}
+.gis-breadcrumb-btn:hover, .gis-breadcrumb-btn.active {
+  background: #e8f4fd;
+}
+.gis-breadcrumb-leaf {
+  font-size: 12px; font-weight: 700; color: #071324; padding: 2px 4px;
+}
+.gis-level-tag {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 3px 8px; background: #e8f4fd;
+  color: #1d5f96; border: 1px solid #b3d4f0; border-radius: 4px; white-space: nowrap;
+}
+.gis-live-tag {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 2px 7px; background: #ecfdf5;
+  color: #047857; border: 1px solid #a7f3d0; border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.gis-live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+  display: inline-block; animation: gisDotPulse 2s infinite ease-in-out;
+}
+@keyframes gisDotPulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.gis-badge-sim {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 7px; background: #fff8e6;
+  color: #92400e; border: 1px solid #fde68a; border-radius: 3px; white-space: nowrap;
+}
+.gis-badge-tiny {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; padding: 1px 4px; background: #fff8e6;
+  color: #92400e; border: 1px solid #fde68a; border-radius: 2px;
+  margin-right: 4px; vertical-align: middle;
+}
+.gis-select {
+  height: 30px; background: #ffffff; border: 1px solid #d2d8e2;
+  border-radius: 4px; padding: 0 8px; font-size: 11px; font-weight: 600;
+  color: #071324; font-family: 'Public Sans', sans-serif; cursor: pointer;
+  outline: none; transition: all 0.15s;
+}
+.gis-select:focus { border-color: #1d5f96; box-shadow: 0 0 0 2px rgba(29, 95, 150, 0.15); }
+.gis-select:disabled { opacity: 0.45; cursor: not-allowed; background: #f8fafc; }
+
+/* Mode Toggle */
+.gis-mode-toggle {
+  display: inline-flex; align-items: center; background: #e2e8f0;
+  padding: 2px; border-radius: 6px; gap: 2px; border: 1px solid #cbd5e1;
+}
+.gis-mode-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px;
+  font-size: 11px; font-weight: 700; font-family: 'Public Sans', sans-serif;
+  color: #475569; background: transparent; border: none; border-radius: 4px;
+  cursor: pointer; transition: all 0.15s;
+}
+.gis-mode-btn.active {
+  background: #0b2545; color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.gis-mode-btn:hover:not(.active) { color: #0f172a; background: rgba(255,255,255,0.6); }
+
+/* Subbar */
+.gis-subbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 14px; background: #ffffff; border-bottom: 1px solid #e2e8f0;
+  border-left: 1px solid #d2d8e2; border-right: 1px solid #d2d8e2;
+  font-size: 12px; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+}
+.gis-breadcrumb-btn {
+  display: inline-flex; align-items: center; gap: 3px; background: transparent;
+  border: none; color: #1d5f96; font-size: 11px; font-weight: 700; cursor: pointer;
+  padding: 2px 5px; border-radius: 3px; font-family: 'Public Sans', sans-serif;
+}
+.gis-breadcrumb-btn:hover { background: #e8f4fd; }
+.gis-breadcrumb-btn.active { color: #071324; background: #f1f5f9; }
+.gis-breadcrumb-leaf { font-size: 11px; font-weight: 700; color: #071324; padding: 2px 4px; }
+
+/* Workspace Grid */
+.gis-workspace {
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 0;
+  background: #f4f6f9; border-left: 1px solid #d2d8e2;
+  border-right: 1px solid #d2d8e2; min-height: 680px; height: calc(100vh - 210px);
+}
+.gis-map-col {
+  display: flex; flex-direction: column; min-height: 100%;
+  border-right: 1px solid #d2d8e2; position: relative;
+}
+.gis-map-titlebar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; background: #ffffff; border-bottom: 1px solid #e6ebf1;
+  gap: 12px; flex-shrink: 0; z-index: 10;
+}
+.gis-map-title-text {
+  font-size: 13px; font-weight: 800; color: #071324; display: block; line-height: 1.25;
+}
+.gis-map-subtitle-text {
+  font-size: 10px; color: #64748b; display: block; margin-top: 2px;
+}
+.gis-toolbar-controls {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+.gis-ctrl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 28px; padding: 0 8px; background: #ffffff; border: 1px solid #d2d8e2;
+  border-radius: 4px; color: #334155; cursor: pointer; transition: all 0.15s;
+  font-size: 11px; font-weight: 700; font-family: 'Public Sans', sans-serif;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.gis-ctrl-btn:hover { background: #f0f7ff; border-color: #1d5f96; color: #1d5f96; }
+.gis-ctrl-btn:active { transform: translateY(1px); }
+.gis-ctrl-btn .gis-btn-text { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* The Map & Container */
+.gis-map-container {
+  position: relative; flex: 1; width: 100%; height: 100%; min-height: 580px; overflow: hidden;
+}
+#leaflet-state-map {
+  width: 100%; height: 100%; min-height: 580px; background: #e2e8f0;
+}
+
+/* Floating Search Bar & Autocomplete */
+.gis-search-wrapper {
+  position: absolute; top: 12px; left: 12px; z-index: 1000; width: 340px;
+}
+.gis-search-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.98); border: 1px solid #cbd5e1;
+  border-radius: 6px; padding: 7px 12px;
+  box-shadow: 0 4px 14px rgba(7,19,36,0.12);
+  backdrop-filter: blur(6px); transition: border-color 0.15s, box-shadow 0.15s;
+}
+.gis-search-bar:focus-within {
+  border-color: #1d5f96; box-shadow: 0 4px 18px rgba(29,95,150,0.22);
+}
+.gis-search-input {
+  flex: 1; border: none; outline: none; font-size: 12px;
+  font-family: 'Public Sans', sans-serif; color: #071324; background: transparent;
+}
+.gis-search-input::placeholder { color: #94a3b8; }
+.gis-search-clear {
+  background: transparent; border: none; cursor: pointer;
+  color: #94a3b8; display: flex; align-items: center; padding: 2px;
+}
+.gis-search-clear:hover { color: #1e293b; }
+
+.gis-search-results {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+  background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(7,19,36,0.18); max-height: 320px;
+  overflow-y: auto; z-index: 1001; scrollbar-width: thin;
+}
+.gis-search-item {
+  padding: 8px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  transition: background 0.12s;
+}
+.gis-search-item:last-child { border-bottom: none; }
+.gis-search-item:hover { background: #f0f7ff; }
+.gis-search-item-title { font-size: 11px; font-weight: 700; color: #071324; line-height: 1.25; }
+.gis-search-item-meta { font-size: 10px; color: #64748b; margin-top: 1px; }
+.gis-search-item-badge {
+  font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0;
+}
+
+/* Floating Layers Panel */
+.gis-layers-panel {
+  position: absolute; top: 12px; right: 12px; z-index: 1000;
+  width: 290px; background: rgba(255,255,255,0.98); border: 1px solid #cbd5e1;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(7,19,36,0.18);
+  padding: 12px; backdrop-filter: blur(8px);
+}
+.gis-layers-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px;
+}
+.gis-layers-section { margin-bottom: 10px; }
+.gis-layers-section:last-child { margin-bottom: 0; }
+.gis-layers-section-title {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #64748b; margin-bottom: 6px;
+}
+.gis-layer-option {
+  display: flex; align-items: center; gap: 8px; font-size: 11px;
+  color: #1e293b; padding: 4px 0; cursor: pointer;
+}
+.gis-layer-option input { cursor: pointer; accent-color: #1d5f96; }
+
+/* Floating Legend */
+.gis-legend {
+  position: absolute; bottom: 36px; left: 12px; z-index: 1000;
+  background: rgba(255,255,255,0.96); border: 1px solid #cbd5e1;
+  border-radius: 6px; padding: 9px 12px;
+  box-shadow: 0 4px 14px rgba(7,19,36,0.12); min-width: 210px; max-width: 250px;
+  backdrop-filter: blur(6px); transition: all 0.2s;
+}
+.gis-legend-title {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #334155;
+}
+.gis-legend-subtitle {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #64748b; margin-top: 4px; margin-bottom: 3px;
+}
+.gis-legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; color: #1e293b; margin-bottom: 2.5px; line-height: 1.25;
+}
+.gis-legend-sep { height: 1px; background: #e2e8f0; margin: 5px 0; }
+.gis-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,0.2);
+}
+.gis-dot-critical { background: #BA1A1A; }
+.gis-dot-high     { background: #D97706; }
+.gis-dot-medium   { background: #CA8A04; }
+.gis-dot-low      { background: #059669; }
+
+.gis-legend-cluster-sample {
+  display: inline-block; padding: 1px 5px; border-radius: 10px;
+  background: #0b2545; color: #ffffff; font-size: 9px; font-weight: 800;
+  font-family: monospace; border: 1.5px solid #ffffff;
+}
+.gis-legend-pin-sample {
+  width: 10px; height: 14px; background: #BA1A1A; display: inline-block;
+  clip-path: polygon(50% 0%, 100% 40%, 65% 100%, 35% 100%, 0% 40%);
+  border-radius: 2px;
+}
+
+/* Floating Status Bar */
+.gis-status-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(7,19,36,0.90); padding: 5px 14px;
+  font-size: 11px; color: rgba(255,255,255,0.85); flex-wrap: wrap;
+  backdrop-filter: blur(5px); border-top: 1px solid rgba(255,255,255,0.1);
+}
+.gis-status-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'Public Sans', sans-serif;
+}
+.gis-status-item strong { color: #ffffff; font-weight: 700; }
+.gis-status-sep { color: rgba(255,255,255,0.3); margin: 0 2px; }
+
+/* Dossier Column */
+.gis-dossier-col {
+  background: #ffffff; display: flex; flex-direction: column;
+  min-height: 100%; overflow-y: auto;
+}
+.gis-dossier-card {
+  padding: 14px; display: flex; flex-direction: column; gap: 12px; flex: 1;
+}
+.gis-bottleneck-box {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 8px 10px;
+}
+.gis-stat-box {
+  background: #f8fafc; border: 1px solid #e6ebf1; border-radius: 4px; padding: 8px 10px;
+}
+.gis-stat-label {
+  font-size: 10px; color: #5e6c84; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;
+}
+.gis-stat-value {
+  font-size: 18px; font-weight: 800; color: #071324;
+  font-family: 'Public Sans', monospace; letter-spacing: -0.02em;
+}
+.gis-children-scroll {
+  scrollbar-width: thin; scrollbar-color: #d2d8e2 transparent;
+}
+.gis-children-scroll::-webkit-scrollbar { width: 4px; }
+.gis-children-scroll::-webkit-scrollbar-track { background: transparent; }
+.gis-children-scroll::-webkit-scrollbar-thumb { background: #d2d8e2; border-radius: 2px; }
+
+.gis-child-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 8px; background: #f8fafc; border: 1px solid #e6ebf1;
+  border-radius: 4px; cursor: pointer; transition: all 0.15s; gap: 8px;
+}
+.gis-child-item:hover { background: #e8f4fd; border-color: #b3d4f0; }
+
+.gis-table-section {
+  background: #ffffff; border: 1px solid #d2d8e2;
+  border-radius: 0 0 6px 6px; border-top: none;
+  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+
+/* GPS Pin Marker & Pulse */
+.gis-pin-icon { position: relative; overflow: visible; background: transparent; border: none; }
+.gis-pin-pulse {
+  position: absolute; top: -5px; left: -5px;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: gisPinPulse 2.2s ease-out infinite; z-index: 0; pointer-events: none;
+}
+@keyframes gisPinPulse {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  65%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+
+/* Marker Clustering Badges */
+.gis-cluster-icon {
+  border-radius: 50%; display: inline-flex; align-items: center;
+  justify-content: center; color: #ffffff; font-weight: 800; font-size: 11.5px;
+  font-family: 'Public Sans', monospace; border: 2.5px solid rgba(255,255,255,0.95);
+  box-shadow: 0 3px 10px rgba(7,19,36,0.30); text-align: center;
+  transition: transform 0.15s;
+}
+.gis-cluster-icon:hover { transform: scale(1.08); }
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+  background: transparent !important; border: none !important; box-shadow: none !important;
+}
+
+/* Leaflet Popup & Government Dossier Popover */
+.gis-popup .leaflet-popup-content-wrapper {
+  border-radius: 8px !important; border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 8px 30px rgba(7,19,36,0.22) !important; padding: 0 !important; overflow: hidden;
+}
+.gis-popup .leaflet-popup-content {
+  margin: 0 !important; font-family: 'Public Sans', sans-serif !important; width: 330px !important;
+}
+.gis-popup .leaflet-popup-tip-container { display: none !important; }
+.gis-popup .leaflet-popup-close-button {
+  color: #ffffff !important; font-size: 18px !important;
+  padding: 6px 8px !important; top: 6px !important; right: 6px !important; z-index: 10;
+}
+.gis-popup .leaflet-popup-close-button:hover { color: #93c5fd !important; }
+
+.gis-popup-header {
+  padding: 10px 14px 9px; background: #071324; color: #ffffff;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+}
+.gis-popup-code {
+  font-size: 9.5px; font-weight: 700; color: #94a3b8;
+  letter-spacing: 0.08em; font-family: monospace; text-transform: uppercase;
+}
+.gis-popup-title {
+  font-size: 13px; font-weight: 700; color: #ffffff; line-height: 1.25; margin-top: 1px;
+}
+.gis-popup-badge {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2.5px 7px; border-radius: 4px;
+  border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+.gis-popup-body {
+  padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; background: #ffffff;
+}
+.gis-popup-meta {
+  font-size: 11px; color: #475569; font-weight: 500;
+  display: flex; align-items: center; gap: 4px;
+}
+.gis-popup-table { width: 100%; font-size: 11.5px; border-collapse: collapse; }
+.gis-popup-table td { padding: 3px 0; color: #334155; vertical-align: middle; }
+.gis-popup-table td:first-child { width: 52%; color: #64748b; font-weight: 500; }
+.gis-popup-table td:last-child { text-align: right; }
+.gis-popup-provenance {
+  font-size: 8.5px; color: #94a3b8; letter-spacing: 0.04em; text-transform: uppercase;
+  border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 2px; font-family: monospace;
+}
+.gis-popup-btn {
+  width: 100%; background: #0b2545; color: #ffffff; border: none;
+  padding: 8px 12px; border-radius: 4px; font-weight: 700; font-size: 11.5px;
+  font-family: 'Public Sans', sans-serif; cursor: pointer;
+  transition: all 0.15s; letter-spacing: 0.02em; text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.gis-popup-btn:hover { background: #1d5f96; transform: translateY(-1px); }
+
+/* Tooltips */
+.india-state-tooltip {
+  background: rgba(7,19,36,0.92); color: #ffffff; font-family: 'Public Sans', sans-serif;
+  font-size: 11px; font-weight: 500; padding: 6px 10px; border-radius: 5px; border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35); white-space: nowrap; pointer-events: none;
+}
+.india-state-tooltip strong { color: #38bdf8; font-weight: 800; font-size: 12px; }
+.india-state-tooltip::before { display: none; }
+
+.leaflet-control-attribution {
+  background: rgba(255,255,255,0.85) !important; font-size: 9px !important; padding: 2px 8px !important;
+}
+.leaflet-control-attribution a { color: #1d5f96 !important; text-decoration: none; }
+.leaflet-control-zoom a {
+  font-family: 'Public Sans', sans-serif !important; color: #071324 !important;
+  border-bottom: 1px solid #d2d8e2 !important;
+}
+.leaflet-control-zoom a:hover { background: #e8f4fd !important; color: #1d5f96 !important; }
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .gis-workspace { grid-template-columns: 1fr; height: auto; min-height: auto; }
+  .gis-map-col { border-right: none; border-bottom: 1px solid #d2d8e2; }
+  .gis-map-container { min-height: 520px; height: 520px; }
+  #leaflet-state-map { min-height: 520px; }
+  .gis-dossier-col { min-height: auto; }
+  .gis-search-wrapper { width: calc(100% - 24px); }
+}
+
+/* ==========================================================================
+   Level 1 Header Functional Upgrades: Role Selector, Provenance, Refresh
+   ========================================================================== */
+.gov-role-dropdown-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.gov-role-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-role-dropdown-btn:hover {
+  background-color: #334155;
+  border-color: #475569;
+}
+.gov-role-dropdown-btn:focus-visible {
+  outline: 2px solid var(--gov-saffron);
+}
+
+.gov-role-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 260px;
+  background-color: #0b1526;
+  border: 1px solid #334155;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  z-index: 10000;
+  padding: 4px 0;
+  display: none;
+}
+.gov-role-dropdown-menu.show {
+  display: block;
+}
+
+.gov-role-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.gov-role-item:hover, .gov-role-item:focus {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+.gov-role-item.active {
+  background-color: #334155;
+  color: #ffffff;
+  font-weight: 700;
+  border-left: 3px solid var(--gov-saffron);
+}
+
+/* Provenance Pills */
+.gov-provenance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-tabular);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid transparent;
+}
+.gov-provenance-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+@keyframes govSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: govSpin 0.9s linear infinite;
+}
+
+/* ==========================================================================
+   OFFICIAL AI INFRASTRUCTURE ASSISTANT (GOOGLE GEMINI)
+   ========================================================================== */
+
+/* Floating Action Button */
+.gov-assistant-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--gov-navy-900, #0a192f);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  box-shadow: 0 4px 18px rgba(10, 25, 47, 0.35);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-body, "Public Sans", sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+}
+.gov-assistant-fab:hover {
+  background: var(--gov-navy-800, #102a45);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(10, 25, 47, 0.45);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.gov-assistant-fab:active {
+  transform: translateY(0);
+}
+.gov-assistant-fab-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gov-assistant-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #0a192f;
+  animation: pulseFab 2.5s infinite;
+}
+@keyframes pulseFab {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+/* Sliding Assistant Drawer */
+.gov-assistant-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background: #ffffff;
+  border-left: 1px solid var(--gov-border, #d2d8e2);
+  box-shadow: -6px 0 28px rgba(10, 25, 47, 0.18);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gov-assistant-drawer.open {
+  transform: translateX(0);
+}
+
+/* Header */
+.gov-assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e6ebf1;
+  flex-shrink: 0;
+}
+.gov-assistant-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #5e6c84;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-assistant-header-btn:hover {
+  background: #eef2f6;
+  color: #172b4d;
+  border-color: #d2d8e2;
+}
+
+/* Context Bar */
+.gov-assistant-context-bar {
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 14px;
+  flex-shrink: 0;
+}
+
+/* Chips Bar */
+.gov-assistant-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+.gov-assistant-chips-bar::-webkit-scrollbar {
+  height: 4px;
+}
+.gov-assistant-chips-bar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.gov-assistant-chip {
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-assistant-chip:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* Messages Container */
+.gov-assistant-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #fcfdfe;
+  scrollbar-width: thin;
+}
+.gov-assistant-messages::-webkit-scrollbar {
+  width: 5px;
+}
+.gov-assistant-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Message Item */
+.gov-assistant-msg {
+  display: flex;
+  gap: 10px;
+  max-width: 92%;
+  position: relative;
+}
+.gov-assistant-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.assistant-entry .gov-assistant-msg-avatar {
+  background: #0a192f;
+  color: #ffffff;
+}
+.user-entry {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.user-entry .gov-assistant-msg-avatar {
+  background: #1d5f96;
+  color: #ffffff;
+}
+.gov-assistant-msg-body {
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.user-entry .gov-assistant-msg-body {
+  background: #0a192f;
+  color: #ffffff;
+  border-radius: 12px 12px 2px 12px;
+}
+.assistant-entry .gov-assistant-msg-body {
+  background: #ffffff;
+  color: #172b4d;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px 12px 12px 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Assistant Markdown Formats */
+.gov-assistant-msg-body h2,
+.gov-assistant-msg-body h3,
+.gov-assistant-msg-body h4 {
+  color: #071324;
+  font-weight: 700;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.gov-assistant-msg-body h2 { font-size: 14px; }
+.gov-assistant-msg-body h3 { font-size: 13px; }
+.gov-assistant-msg-body h4 { font-size: 12px; }
+
+.gov-assistant-msg-body p {
+  margin-bottom: 6px;
+}
+.gov-assistant-msg-body p:last-child {
+  margin-bottom: 0;
+}
+
+.gov-assistant-msg-body ul,
+.gov-assistant-msg-body ol {
+  margin-left: 18px;
+  margin-bottom: 6px;
+}
+.gov-assistant-msg-body li {
+  margin-bottom: 3px;
+}
+.gov-assistant-msg-body strong {
+  color: #071324;
+  font-weight: 600;
+}
+.user-entry .gov-assistant-msg-body strong {
+  color: #ffffff;
+}
+
+.gov-assistant-msg-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 11px;
+}
+.gov-assistant-msg-body th,
+.gov-assistant-msg-body td {
+  border: 1px solid #cbd5e1;
+  padding: 5px 8px;
+  text-align: left;
+}
+.gov-assistant-msg-body th {
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #0f172a;
+}
+.gov-assistant-msg-body tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.gov-assistant-msg-body code {
+  font-family: var(--font-tabular, monospace);
+  font-size: 11px;
+  background: #f1f5f9;
+  color: #0f172a;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid #e2e8f0;
+}
+.user-entry .gov-assistant-msg-body code {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: none;
+}
+.gov-assistant-msg-body pre {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: var(--font-tabular, monospace);
+  font-size: 11px;
+  margin: 6px 0;
+}
+
+/* Tool execution pill */
+.assistant-tool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-family: var(--font-tabular, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 2px 0 4px 0;
+}
+
+/* Action button inside assistant reply */
+.assistant-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #0a192f;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  margin: 6px 4px 2px 0;
+  transition: background 0.15s ease;
+}
+.assistant-action-btn:hover {
+  background: #1d5f96;
+}
+
+/* Message Meta & Actions */
+.gov-assistant-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 3px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+.gov-assistant-msg-action-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.gov-assistant-msg-action-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Typing Indicator */
+.gov-assistant-typing {
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.gov-assistant-typing.hidden {
+  display: none !important;
+}
+.gov-typing-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1d5f96;
+  animation: dotPulse 1.2s infinite ease-in-out both;
+}
+.gov-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.gov-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Input Area */
+.gov-assistant-input-wrap {
+  background: #ffffff;
+  border-top: 1px solid var(--gov-border, #d2d8e2);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+.gov-assistant-textarea-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.gov-assistant-textarea-container:focus-within {
+  border-color: #1d5f96;
+  box-shadow: 0 0 0 2px rgba(29, 95, 150, 0.15);
+  background: #ffffff;
+}
+.gov-assistant-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #1e293b;
+  max-height: 120px;
+  padding: 2px 0;
+}
+.gov-assistant-textarea::placeholder {
+  color: #94a3b8;
+}
+.gov-assistant-send-btn {
+  background: #0a192f;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.gov-assistant-send-btn:hover {
+  background: #1d5f96;
+  transform: translateY(-1px);
+}
+.gov-assistant-send-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .gov-assistant-drawer {
+    width: 100vw;
+    height: 100vh;
+    border-left: none;
+  }
+  .gov-assistant-fab {
+    bottom: 16px;
+    right: 16px;
+    padding: 10px;
+    border-radius: 50%;
+  }
+}
+
+/* ========================================================================= */
+/* AI ASSISTANT CHAT HISTORY, MODES, & PERSISTENCE STYLES                    */
+/* ========================================================================= */
+
+/* Mode Pill Button */
+.gov-assistant-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-assistant-mode-pill:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Mode Dropdown */
+.gov-assistant-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 210px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  z-index: 1050;
+  overflow: hidden;
+}
+.gov-assistant-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.gov-assistant-dropdown-item:last-child {
+  border-bottom: none;
+}
+.gov-assistant-dropdown-item:hover {
+  background: #f8fafc;
+}
+.gov-assistant-dropdown-item.active {
+  background: #eff6ff;
+}
+
+/* Temporary Banner */
+.gov-assistant-temp-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+  flex-shrink: 0;
+}
+
+/* Title Bar */
+.gov-assistant-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.gov-assistant-perm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-assistant-perm-btn:hover {
+  background: #dbeafe;
+}
+.gov-assistant-perm-btn.is-permanent {
+  background: #1e3a8a;
+  color: #ffffff;
+  border-color: #172554;
+}
+
+/* Sliding History Overlay Panel */
+.gov-assistant-history-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 1020;
+  display: flex;
+  flex-direction: column;
+}
+.gov-assistant-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.gov-assistant-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+}
+.gov-assistant-history-group-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 6px 4px 6px;
+}
+.gov-assistant-history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 9px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gov-assistant-history-item:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  transform: translateX(2px);
+}
+.gov-assistant-history-item.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* History Badges */
+.gov-badge-mode-temporary {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  text-transform: uppercase;
+}
+.gov-badge-mode-30day {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  text-transform: uppercase;
+}
+.gov-badge-mode-permanent {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  text-transform: uppercase;
+}
+
+/* Modals */
+.gov-assistant-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gov-assistant-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+}
+.gov-assistant-modal-box {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 360px;
+  padding: 18px;
+  z-index: 2010;
+}
+
+
 

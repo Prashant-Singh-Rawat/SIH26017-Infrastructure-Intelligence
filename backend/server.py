@@ -51,6 +51,7 @@ from backend.schemas import (
     CreateAlertRequest,
     SnapshotIngestPayload,
     EGoSDispatchPayload,
+    IssueStatusUpdateRequest,
     ErrorResponse
 )
 from datetime import datetime
@@ -306,32 +307,46 @@ def get_demo_token(role: Optional[str] = Query("VIEWER")):
     """
     raw_role = (role or "VIEWER").strip().upper()
     role_alias_map = {
+        "NATIONAL_ADMIN": "ADMIN",
         "ADMIN": "ADMIN",
         "ADMINISTRATOR": "ADMIN",
-        "AUDITOR": "ADMIN",
+        "STATE_NODAL_OFFICER": "OFFICER",
+        "STATE_OFFICER": "OFFICER",
+        "STATE": "OFFICER",
+        "DISTRICT_OFFICER": "OFFICER",
+        "DISTRICT_COLLECTOR": "OFFICER",
+        "DISTRICT": "OFFICER",
+        "PROJECT_MONITORING_OFFICER": "OFFICER",
+        "PROJECT_OFFICER": "OFFICER",
         "MINISTRY": "OFFICER",
         "LINE MINISTRY": "OFFICER",
         "OFFICER": "OFFICER",
         "NODAL": "OFFICER",
         "ANALYST": "ANALYST",
         "ECONOMIST": "ANALYST",
+        "STATUTORY_AUDITOR": "AUDITOR",
+        "AUDITOR": "AUDITOR",
+        "CAG": "AUDITOR",
+        "PUBLIC_OVERSIGHT": "VIEWER",
         "VIEWER": "VIEWER",
         "PUBLIC": "VIEWER",
         "CITIZEN": "VIEWER"
     }
     role_upper = role_alias_map.get(raw_role, "VIEWER")
     user_map = {
-        "ADMIN": ("00000000-0000-0000-0000-000000000001", "admin.infra@gov.in", "Director General (Infrastructure Intelligence)"),
-        "OFFICER": ("00000000-0000-0000-0000-000000000002", "officer.railways@gov.in", "Executive Director (Works)"),
-        "ANALYST": ("00000000-0000-0000-0000-000000000003", "analyst.gatishakti@gov.in", "Lead Infrastructure Economist"),
-        "VIEWER": ("00000000-0000-0000-0000-000000000004", "viewer.public@gov.in", "Public Governance Auditor")
+        "ADMIN": ("00000000-0000-0000-0000-000000000001", "admin.infra@gov.in", "Director General (National Admin)"),
+        "OFFICER": ("00000000-0000-0000-0000-000000000002", "officer.infra@gov.in", "Executive Director / Nodal Officer"),
+        "ANALYST": ("00000000-0000-0000-0000-000000000003", "analyst.gatishakti@gov.in", "Lead Infrastructure Analyst"),
+        "AUDITOR": ("00000000-0000-0000-0000-000000000005", "cag.auditor@gov.in", "Statutory Auditor (Read-Only)"),
+        "VIEWER": ("00000000-0000-0000-0000-000000000004", "viewer.public@gov.in", "Public Oversight Governance Auditor")
     }
-    uid, email, name = user_map[role_upper]
+    uid, email, name = user_map.get(role_upper, user_map["VIEWER"])
     token = create_access_token(uid, email, role_upper, full_name=name)
     return {
         "access_token": token,
         "token_type": "Bearer",
         "role": role_upper,
+        "requested_role": raw_role,
         "user": {"id": uid, "email": email, "full_name": name}
     }
 
@@ -685,7 +700,8 @@ def predict_project_v1(
         active_legal_disputes=disputes,
         affected_families_count=families,
         rehabilitation_package_cr=pkg_cr,
-        cost_cr=cost
+        cost_cr=cost,
+        current_stage=req.current_land_stage
     )
 
     macro_recs = get_action_recommendations(prob, delay_days, req.sector_name, req.line_ministry, cost)
@@ -819,11 +835,29 @@ def simulate_policy_v1(
     cursor.execute(adapt_query("SELECT ministry_delay_rate FROM projects WHERE line_ministry = ? LIMIT 1;"), [req.line_ministry])
     m_row = cursor.fetchone()
     min_rate = float(m_row["ministry_delay_rate"]) if m_row else float(model_metadata.get("base_delay_rate", 0.6396))
+
+    project_context = None
+    if req.project_code:
+        cursor.execute(adapt_query("""
+        SELECT p.*, s.land_required_acres, s.land_acquired_pct, s.land_clearance_status, s.active_legal_disputes
+        FROM projects p
+        LEFT JOIN simulated_land_gis s ON p.project_code = s.project_code
+        WHERE p.project_code = ?;
+        """), [req.project_code])
+        p_row = cursor.fetchone()
+        if p_row:
+            project_context = dict(p_row)
+
     conn.close()
     
     cost = max(req.original_cost_cr, 1.0)
     bucket = assign_cost_bucket(cost)
     
+    # Baseline delay days override: prefer request or project record if available
+    baseline_delay_override = req.baseline_delay_days
+    if baseline_delay_override is None and project_context and project_context.get("schedule_delay_days") is not None:
+        baseline_delay_override = float(project_context["schedule_delay_days"])
+
     base_input = {
         "sector_name": req.sector_name,
         "line_ministry": req.line_ministry,
@@ -833,7 +867,8 @@ def simulate_policy_v1(
         "original_end_year": req.planned_end_year,
         "original_end_quarter": req.planned_end_quarter,
         "sector_delay_rate": sec_rate,
-        "ministry_delay_rate": min_rate
+        "ministry_delay_rate": min_rate,
+        "baseline_delay_days": baseline_delay_override
     }
     
     interventions = {
@@ -845,8 +880,11 @@ def simulate_policy_v1(
         "drone_possession_handover": req.drone_possession_handover
     }
     
-    res = simulate_interventions(base_input, interventions)
-    res["provenance_disclaimer"] = "MODEL SIMULATION — SCENARIO ESTIMATE (NOT AN OFFICIAL GOVERNMENT FORECAST)"
+    res = simulate_interventions(base_input, interventions, project_context=project_context)
+    if req.project_code:
+        res["project_code"] = req.project_code
+        if project_context and project_context.get("project_name"):
+            res["project_name"] = project_context["project_name"]
 
     # PERSIST TO DATABASE (P0)
     sim_id = f"sim_{uuid.uuid4().hex[:12]}"
@@ -884,6 +922,47 @@ def simulate_policy_v1(
     )
 
     return res
+
+@app.get("/api/v1/simulations/history", tags=["Decision Support"])
+def get_simulation_history_v1(
+    limit: int = Query(10, ge=1, le=50),
+    user: Optional[UserClaims] = Depends(get_optional_user)
+):
+    """Retrieves recent policy simulation records for scenario comparison."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(adapt_query("""
+    SELECT id, user_id, sector, ministry, original_cost, planned_year,
+           interventions, baseline_metrics, simulated_metrics, impact_metrics, simulated_at
+    FROM policy_simulations
+    ORDER BY simulated_at DESC
+    LIMIT ?;
+    """), [limit])
+    rows = cursor.fetchall()
+    conn.close()
+
+    history = []
+    for r in rows:
+        item = dict(r)
+        try:
+            item["interventions"] = json.loads(item["interventions"])
+        except Exception:
+            pass
+        try:
+            item["baseline_metrics"] = json.loads(item["baseline_metrics"])
+        except Exception:
+            pass
+        try:
+            item["simulated_metrics"] = json.loads(item["simulated_metrics"])
+        except Exception:
+            pass
+        try:
+            item["impact_metrics"] = json.loads(item["impact_metrics"])
+        except Exception:
+            pass
+        history.append(item)
+
+    return {"simulations": history}
 
 @app.get("/api/v1/alerts", tags=["Escalation Alerts"])
 def get_alerts_v1(
@@ -1330,10 +1409,214 @@ def dispatch_simulation_egos_v1(
         "message": f"Intervention Package submitted to EGoS Portal (Tracking #EGOS-2026-{new_id:04d})."
     }
 
+def _get_all_data_quality_issues(conn):
+    """Internal helper to aggregate, structure, and categorize all genuine data quality anomalies from the database."""
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS data_quality_remediations (
+        project_code INTEGER PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'Open',
+        reviewed_by TEXT,
+        notes TEXT,
+        updated_at TEXT
+    );
+    """)
+    conn.commit()
+
+    cursor.execute(adapt_query("""
+    SELECT 
+        p.project_code,
+        p.project_name,
+        p.sector_name,
+        p.line_ministry,
+        p.original_cost_cr,
+        p.revised_cost_cr,
+        p.expenditure_cr,
+        p.original_end_date,
+        p.revised_end_date,
+        p.schedule_delay_days,
+        p.data_quality_flags,
+        s.inferred_state,
+        s.land_required_acres,
+        s.land_acquired_pct,
+        s.active_legal_disputes,
+        COALESCE(r.status, 'Open') as remediation_status,
+        r.reviewed_by,
+        r.notes as remediation_notes
+    FROM projects p
+    LEFT JOIN simulated_land_gis s ON p.project_code = s.project_code
+    LEFT JOIN data_quality_remediations r ON p.project_code = r.project_code
+    WHERE p.data_quality_flags != 'CLEAN'
+       OR (s.land_acquired_pct IS NOT NULL AND (s.land_acquired_pct > 100.0 OR s.land_acquired_pct < 0.0))
+       OR (s.land_required_acres IS NOT NULL AND s.land_required_acres <= 0)
+    ORDER BY p.project_code ASC;
+    """))
+    rows = cursor.fetchall()
+    issues = []
+    for r in rows:
+        p_code = r["project_code"]
+        p_name = r["project_name"]
+        sector = r["sector_name"] or "General"
+        ministry = r["line_ministry"] or "Line Ministry"
+        state = r["inferred_state"] or "Delhi"
+        status = r["remediation_status"] or "Open"
+        flags = [f.strip() for f in (r["data_quality_flags"] or "").split(";") if f.strip() and f.strip() != "CLEAN"]
+
+        orig_cost = float(r["original_cost_cr"] or 0)
+        rev_cost = float(r["revised_cost_cr"] or 0)
+        expenditure = float(r["expenditure_cr"] or 0)
+        delay_days = float(r["schedule_delay_days"] or 0)
+        rev_date = r["revised_end_date"]
+        land_pct = float(r["land_acquired_pct"]) if r["land_acquired_pct"] is not None else None
+        land_acres = float(r["land_required_acres"]) if r["land_required_acres"] is not None else None
+
+        for flag in flags:
+            if flag == "NOT_YET_REVISED_COST":
+                issues.append({
+                    "id": f"{p_code}-cost-sentinel",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "revised_cost_cr",
+                    "issue": "Unrevised Cost Sentinel (₹0.0 Cr)",
+                    "issue_type": "Sentinel Value",
+                    "severity": "HIGH",
+                    "current_value": "₹0.0 Cr",
+                    "expected_format": "Estimated Outlay > ₹0.0 Cr",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+            elif flag == "EXPENDITURE_EXCEEDS_ORIGINAL":
+                is_crit = expenditure > (1.5 * orig_cost) and orig_cost > 0
+                issues.append({
+                    "id": f"{p_code}-overspent",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "expenditure_cr",
+                    "issue": "Expenditure Exceeds Sanctioned Cost",
+                    "issue_type": "Consistency Flaw",
+                    "severity": "CRITICAL" if is_crit else "HIGH",
+                    "current_value": f"₹{expenditure:,.2f} Cr (Sanction: ₹{orig_cost:,.2f} Cr)",
+                    "expected_format": "Expenditure ≤ Sanctioned Outlay",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+            elif flag == "MISSING_REVISED_DATE":
+                issues.append({
+                    "id": f"{p_code}-missing-date",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "revised_end_date",
+                    "issue": "Missing Commissioning Date",
+                    "issue_type": "Completeness Gap",
+                    "severity": "MEDIUM",
+                    "current_value": "Null / Unrecorded",
+                    "expected_format": "Valid Date (DD/MM/YYYY)",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+            elif "IMPLAUSIBLE_FUTURE_DATE" in flag:
+                issues.append({
+                    "id": f"{p_code}-future-date",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "revised_end_date",
+                    "issue": "Implausible Date Beyond 2050",
+                    "issue_type": "Validity Violation",
+                    "severity": "CRITICAL",
+                    "current_value": str(rev_date or "2050+"),
+                    "expected_format": "Completion Year ≤ 2050",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+            elif "EXTREME_SCHEDULE_OUTLIER" in flag:
+                issues.append({
+                    "id": f"{p_code}-schedule-outlier",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "schedule_delay_days",
+                    "issue": "Extreme Timeline Drift (>6 Years)",
+                    "issue_type": "Statistical Outlier",
+                    "severity": "HIGH",
+                    "current_value": f"+{int(delay_days):,} Days",
+                    "expected_format": "Schedule Delay ≤ 2,190 Days",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+            elif "EXTREME_COST_OVERRUN" in flag:
+                issues.append({
+                    "id": f"{p_code}-cost-outlier",
+                    "project_code": p_code,
+                    "project_name": p_name,
+                    "sector_name": sector,
+                    "line_ministry": ministry,
+                    "state": state,
+                    "field": "revised_cost_cr",
+                    "issue": "Extreme Capital Escalation (>300%)",
+                    "issue_type": "Statistical Outlier",
+                    "severity": "CRITICAL",
+                    "current_value": f"₹{rev_cost:,.2f} Cr (Orig: ₹{orig_cost:,.2f} Cr)",
+                    "expected_format": "Escalation ≤ 300% without Cabinet note",
+                    "status": status,
+                    "reviewed_by": r["reviewed_by"]
+                })
+
+        if land_pct is not None and (land_pct > 100.0 or land_pct < 0.0):
+            issues.append({
+                "id": f"{p_code}-land-pct",
+                "project_code": p_code,
+                "project_name": p_name,
+                "sector_name": sector,
+                "line_ministry": ministry,
+                "state": state,
+                "field": "land_acquired_pct",
+                "issue": "Out of Bounds Land Percentage",
+                "issue_type": "Validity Violation",
+                "severity": "HIGH",
+                "current_value": f"{land_pct}%",
+                "expected_format": "Bound 0.0% – 100.0%",
+                "status": status,
+                "reviewed_by": r["reviewed_by"]
+            })
+        if land_acres is not None and land_acres <= 0:
+            issues.append({
+                "id": f"{p_code}-land-acres",
+                "project_code": p_code,
+                "project_name": p_name,
+                "sector_name": sector,
+                "line_ministry": ministry,
+                "state": state,
+                "field": "land_required_acres",
+                "issue": "Zero or Negative Land Acreage",
+                "issue_type": "Validity Violation",
+                "severity": "MEDIUM",
+                "current_value": f"{land_acres} Acres",
+                "expected_format": "Land Required > 0.0 Acres",
+                "status": status,
+                "reviewed_by": r["reviewed_by"]
+            })
+
+    return issues
+
+
 @app.get("/api/v1/data-quality", tags=["Data Governance"])
 def get_data_quality_v1():
     """
-    Returns programmatic data quality telemetry, anomaly metrics, and health scores.
+    Returns programmatic data quality telemetry, anomaly metrics, 5-dimension breakdown, and health scores.
     Computed dynamically from authentic project records and simulated land governance tables.
     """
     conn = get_db_connection()
@@ -1346,7 +1629,9 @@ def get_data_quality_v1():
         SUM(CASE WHEN expenditure_cr > original_cost_cr THEN 1 ELSE 0 END) as overspent,
         SUM(CASE WHEN data_quality_flags LIKE '%IMPLAUSIBLE_FUTURE_DATE%' THEN 1 ELSE 0 END) as extreme_dates,
         SUM(CASE WHEN data_quality_flags LIKE '%EXTREME_SCHEDULE_OUTLIER%' THEN 1 ELSE 0 END) as schedule_outliers,
-        SUM(CASE WHEN data_quality_flags LIKE '%EXTREME_COST_OVERRUN%' THEN 1 ELSE 0 END) as cost_outliers
+        SUM(CASE WHEN data_quality_flags LIKE '%EXTREME_COST_OVERRUN%' THEN 1 ELSE 0 END) as cost_outliers,
+        SUM(CASE WHEN data_quality_flags = 'CLEAN' THEN 1 ELSE 0 END) as clean_records,
+        SUM(CASE WHEN data_quality_flags != 'CLEAN' THEN 1 ELSE 0 END) as flagged_records
     FROM projects;
     """)
     audit_stats = dict(cursor.fetchone())
@@ -1365,6 +1650,25 @@ def get_data_quality_v1():
     FROM simulated_land_gis;
     """)
     land_audit = dict(cursor.fetchone())
+    
+    # Check remediation status counts
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS data_quality_remediations (
+        project_code INTEGER PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'Open',
+        reviewed_by TEXT,
+        notes TEXT,
+        updated_at TEXT
+    );
+    """)
+    cursor.execute("SELECT COUNT(*) as resolved_cnt FROM data_quality_remediations WHERE status = 'Resolved';")
+    res_row = cursor.fetchone()
+    resolved_count = res_row["resolved_cnt"] if res_row else 0
+
+    cursor.execute("SELECT COUNT(*) as review_cnt FROM data_quality_remediations WHERE status = 'Under Review';")
+    rev_row = cursor.fetchone()
+    review_count = rev_row["review_cnt"] if rev_row else 0
+
     conn.close()
 
     total_rec = audit_stats.get("total_records", 1981)
@@ -1372,8 +1676,8 @@ def get_data_quality_v1():
     anomaly_fields = (
         audit_stats.get("extreme_dates", 0) + 
         audit_stats.get("schedule_outliers", 0) + 
-        audit_stats.get("cost_outliers", 0) +
-        land_audit.get("invalid_acres", 0) +
+        audit_stats.get("cost_outliers", 0) + 
+        land_audit.get("invalid_acres", 0) + 
         land_audit.get("invalid_pct", 0)
     )
     total_evaluated_points = total_rec * 12
@@ -1382,13 +1686,75 @@ def get_data_quality_v1():
     
     health_status = "EXCELLENT" if quality_score >= 90.0 else ("ACCEPTABLE" if quality_score >= 75.0 else "NEEDS_AUDIT")
 
+    valid_rec = audit_stats.get("clean_records", 857)
+    invalid_rec = audit_stats.get("flagged_records", 1124)
+    audit_stats["valid_records"] = valid_rec
+    audit_stats["invalid_records"] = invalid_rec
+    audit_stats["duplicate_records"] = dup_names
+
+    # 5-Dimension Quality Breakdown
+    completeness_issues = audit_stats.get("missing_rev_date", 0) + audit_stats.get("unrevised_cost", 0)
+    completeness_score = round(max(0.0, 100.0 - (completeness_issues / (total_rec * 2.0)) * 100.0), 1)
+
+    consistency_issues = audit_stats.get("overspent", 0)
+    consistency_score = round(max(0.0, 100.0 - (consistency_issues / float(total_rec)) * 100.0), 1)
+
+    validity_issues = audit_stats.get("extreme_dates", 0) + land_audit.get("invalid_acres", 0) + land_audit.get("invalid_pct", 0)
+    validity_score = round(max(0.0, 100.0 - (validity_issues / float(total_rec)) * 100.0), 1)
+
+    uniqueness_issues = dup_names
+    uniqueness_score = 100.0 if uniqueness_issues == 0 else round(max(0.0, 100.0 - (uniqueness_issues / float(total_rec)) * 100.0), 1)
+
+    accuracy_issues = audit_stats.get("schedule_outliers", 0) + audit_stats.get("cost_outliers", 0)
+    accuracy_score = round(max(0.0, 100.0 - (accuracy_issues / (total_rec * 2.0)) * 100.0), 1)
+
     return {
         "data_quality_audit": audit_stats,
         "overall_quality_score_pct": quality_score,
         "data_health_status": health_status,
+        "audit_status": "MONITORED — VERIFIED REPOSITORY",
         "duplicate_records_count": dup_names,
         "total_monitored_records": total_rec,
+        "valid_records_count": valid_rec,
+        "invalid_records_count": invalid_rec,
         "missing_critical_fields_count": missing_fields,
+        "remediation_metrics": {
+            "resolved_issues_count": resolved_count,
+            "under_review_count": review_count,
+            "open_issues_count": max(0, invalid_rec - resolved_count - review_count)
+        },
+        "quality_breakdown": {
+            "completeness": {
+                "score_pct": completeness_score,
+                "issues_count": completeness_issues,
+                "title": "COMPLETENESS",
+                "description": "Evaluates presence of mandatory baseline commissioning dates and sanctioned capital outlays."
+            },
+            "consistency": {
+                "score_pct": consistency_score,
+                "issues_count": consistency_issues,
+                "title": "CONSISTENCY",
+                "description": "Flags fiscal variance where cumulative expenditures exceed sanctioned project budgets."
+            },
+            "validity": {
+                "score_pct": validity_score,
+                "issues_count": validity_issues,
+                "title": "VALIDITY",
+                "description": "Validates date intervals, positive land acquisition acres, and bounded land progress percentages (0–100%)."
+            },
+            "uniqueness": {
+                "score_pct": uniqueness_score,
+                "issues_count": uniqueness_issues,
+                "title": "UNIQUENESS",
+                "description": "Verifies primary key integrity across MoSPI project code identifiers and project names."
+            },
+            "accuracy": {
+                "score_pct": accuracy_score,
+                "issues_count": accuracy_issues,
+                "title": "ACCURACY",
+                "description": "Identifies extreme schedule drift and cost escalation outliers exceeding 3σ distribution thresholds."
+            }
+        },
         "land_acquisition_integrity": {
             "total_land_parcels_audited": land_audit.get("total_land_records", 0),
             "invalid_acreage_count": land_audit.get("invalid_acres", 0),
@@ -1398,6 +1764,196 @@ def get_data_quality_v1():
         "last_audit_timestamp": datetime_iso(),
         "provenance_note": "Rigorous programmatic sentinels computed across MoSPI PAIMANA repository and DoLR land layer."
     }
+
+
+@app.get("/api/v1/data-quality/issues", tags=["Data Governance"])
+def get_data_quality_issues_v1(
+    severity: Optional[str] = Query(None, description="Filter by severity: CRITICAL, HIGH, MEDIUM, LOW"),
+    issue_type: Optional[str] = Query(None, description="Filter by issue type"),
+    sector: Optional[str] = Query(None, description="Filter by sector name"),
+    ministry: Optional[str] = Query(None, description="Filter by line ministry"),
+    status: Optional[str] = Query(None, description="Filter by status: Open, Under Review, Resolved"),
+    q: Optional[str] = Query(None, description="Search keyword in project name or code"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(15, ge=1, le=100, description="Items per page")
+):
+    """
+    Returns filterable, paginated audit issues derived from real data validation sentinels across project records.
+    """
+    conn = get_db_connection()
+    all_issues = _get_all_data_quality_issues(conn)
+    conn.close()
+
+    # Apply in-memory filtering over structured issue catalog
+    filtered = all_issues
+    if severity and severity.strip().upper() != "ALL":
+        sev = severity.strip().upper()
+        filtered = [i for i in filtered if i["severity"].upper() == sev]
+
+    if issue_type and issue_type.strip().lower() != "all":
+        it = issue_type.strip().lower()
+        filtered = [i for i in filtered if it in i["issue_type"].lower()]
+
+    if sector and sector.strip().lower() != "all":
+        sec = sector.strip().lower()
+        filtered = [i for i in filtered if sec in i["sector_name"].lower()]
+
+    if ministry and ministry.strip().lower() != "all":
+        minis = ministry.strip().lower()
+        filtered = [i for i in filtered if minis in i["line_ministry"].lower()]
+
+    if status and status.strip().lower() != "all":
+        stat = status.strip().lower()
+        filtered = [i for i in filtered if stat in i["status"].lower()]
+
+    if q and q.strip():
+        term = q.strip().lower()
+        filtered = [
+            i for i in filtered
+            if term in str(i["project_code"]).lower() or term in i["project_name"].lower() or term in i["issue"].lower()
+        ]
+
+    total_count = len(filtered)
+    start = (page - 1) * limit
+    end = start + limit
+    paginated = filtered[start:end]
+
+    return {
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": max(1, (total_count + limit - 1) // limit),
+        "issues": paginated
+    }
+
+
+@app.post("/api/v1/data-quality/issues/{project_code}/status", tags=["Data Governance"])
+def update_data_quality_issue_status_v1(
+    project_code: int,
+    payload: IssueStatusUpdateRequest,
+    request: Request,
+    user: Optional[UserClaims] = Depends(get_optional_user)
+):
+    """
+    Remediation action: updates verification/review status of an audited data issue.
+    Restricted: Read-only VIEWER role receives HTTP 403.
+    """
+    if user and user.role.upper() == "VIEWER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "FORBIDDEN_ROLE",
+                    "message": "Access denied: Public VIEWER role is read-only and cannot remediate or modify data audit records."
+                }
+            }
+        )
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS data_quality_remediations (
+        project_code INTEGER PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'Open',
+        reviewed_by TEXT,
+        notes TEXT,
+        updated_at TEXT
+    );
+    """)
+
+    actor = user.email if user else "auditor.statutory@gov.in"
+    now_ts = datetime_iso()
+
+    status_map = {
+        "OPEN": "Open",
+        "UNDER_REVIEW": "Under Review",
+        "RESOLVED": "Resolved",
+        "Open": "Open",
+        "Under Review": "Under Review",
+        "Resolved": "Resolved"
+    }
+    norm_status = status_map.get(payload.status, payload.status)
+
+    cursor.execute(adapt_query("SELECT project_code FROM data_quality_remediations WHERE project_code = ?;"), [project_code])
+    exists = cursor.fetchone()
+    if exists:
+        cursor.execute(adapt_query("""
+        UPDATE data_quality_remediations 
+        SET status = ?, reviewed_by = ?, notes = ?, updated_at = ?
+        WHERE project_code = ?;
+        """), (norm_status, actor, payload.notes or "", now_ts, project_code))
+    else:
+        cursor.execute(adapt_query("""
+        INSERT INTO data_quality_remediations (project_code, status, reviewed_by, notes, updated_at)
+        VALUES (?, ?, ?, ?, ?);
+        """), (project_code, norm_status, actor, payload.notes or "", now_ts))
+
+    conn.commit()
+    conn.close()
+
+    log_audit_event(
+        request,
+        action="DATA_AUDIT_REMEDIATION",
+        resource_type="data_quality_issue",
+        user=user,
+        metadata={"project_code": project_code, "status": payload.status}
+    )
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "new_status": norm_status,
+        "project_code": project_code,
+        "reviewed_by": actor,
+        "updated_at": now_ts
+    }
+
+
+@app.get("/api/v1/data-quality/export", tags=["Data Governance"])
+def export_data_quality_csv_v1():
+    """
+    Generates a downloadable CSV audit report of all detected dataset issues.
+    """
+    import csv
+    import io
+    from fastapi.responses import Response
+
+    conn = get_db_connection()
+    issues = _get_all_data_quality_issues(conn)
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Project Code", "Project Name", "Sector", "Ministry", "State",
+        "Field", "Issue Description", "Issue Type", "Severity",
+        "Current Value", "Expected Format", "Remediation Status", "Reviewed By"
+    ])
+    for i in issues:
+        writer.writerow([
+            i["project_code"],
+            i["project_name"],
+            i["sector_name"],
+            i["line_ministry"],
+            i["state"],
+            i["field"],
+            i["issue"],
+            i["issue_type"],
+            i["severity"],
+            i["current_value"],
+            i["expected_format"],
+            i["status"],
+            i.get("reviewed_by") or ""
+        ])
+
+    csv_data = output.getvalue()
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=mospi_data_quality_audit_report.csv"
+        }
+    )
 
 @app.get("/api/v1/model/metrics", tags=["Predictive Analytics"])
 def get_model_metrics_v1():
@@ -1533,6 +2089,201 @@ def get_metadata_v1(state: Optional[str] = None):
         "states": states,
         "districts": districts,
         "provenance_note": "Sectors and ministries from real Projects_Report.csv. States and districts are Demonstration Dataset: Simulated Historical Land Records."
+    }
+
+@app.get("/api/v1/gis/projects", tags=["Spatial Analytics"])
+def get_gis_projects_v1(
+    state: Optional[str] = Query(None, description="Filter by state name"),
+    district: Optional[str] = Query(None, description="Filter by district name"),
+    sector: Optional[str] = Query(None, description="Filter by sector name"),
+    ministry: Optional[str] = Query(None, description="Filter by line ministry"),
+    risk: Optional[str] = Query(None, description="Filter by risk tier: CRITICAL, HIGH, MEDIUM, LOW"),
+    delay: Optional[str] = Query(None, description="Filter by delay status: ON_SCHEDULE, DELAYED, 90, 180, 365"),
+    cost_overrun: Optional[str] = Query(None, description="Filter by cost overrun %: 10, 20, 50, 100"),
+    land_status: Optional[str] = Query(None, description="Filter by land acquisition status"),
+    search: Optional[str] = Query(None, description="Search by project code, name, sector, or district"),
+    limit: int = Query(2000, description="Max records to return", ge=1, le=3000)
+):
+    """
+    Returns spatial project records with coordinates, delay and land encumbrance metrics.
+    Computes dynamic aggregate summary of filtered projects.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    clauses = ["s.latitude IS NOT NULL AND s.longitude IS NOT NULL"]
+    params = []
+    
+    if state and state.strip():
+        clauses.append("s.inferred_state = ?")
+        params.append(state.strip())
+        
+    if district and district.strip():
+        clauses.append("s.district = ?")
+        params.append(district.strip())
+        
+    if sector and sector.strip():
+        clauses.append("p.sector_name = ?")
+        params.append(sector.strip())
+        
+    if ministry and ministry.strip():
+        clauses.append("p.line_ministry = ?")
+        params.append(ministry.strip())
+        
+    if risk and risk.strip():
+        r = risk.strip().upper()
+        if r == "CRITICAL":
+            clauses.append("(p.schedule_delay_days > 730 OR s.active_legal_disputes >= 3)")
+        elif r == "HIGH":
+            clauses.append("((p.schedule_delay_days > 365 AND p.schedule_delay_days <= 730) OR s.active_legal_disputes = 2)")
+        elif r == "MEDIUM":
+            clauses.append("((p.schedule_delay_days > 90 AND p.schedule_delay_days <= 365) OR s.active_legal_disputes = 1)")
+        elif r == "LOW":
+            clauses.append("((p.schedule_delay_days <= 90 OR p.is_delayed = 0) AND (s.active_legal_disputes IS NULL OR s.active_legal_disputes = 0))")
+            
+    if delay and delay.strip():
+        d = delay.strip().upper()
+        if d == "ON_SCHEDULE":
+            clauses.append("(p.is_delayed = 0 AND (p.schedule_delay_days IS NULL OR p.schedule_delay_days <= 0))")
+        elif d == "DELAYED":
+            clauses.append("(p.is_delayed = 1 OR p.schedule_delay_days > 0)")
+        elif d in ("90", ">90"):
+            clauses.append("p.schedule_delay_days > 90")
+        elif d in ("180", ">180"):
+            clauses.append("p.schedule_delay_days > 180")
+        elif d in ("365", ">365"):
+            clauses.append("p.schedule_delay_days > 365")
+            
+    if cost_overrun and cost_overrun.strip():
+        c = cost_overrun.strip().replace(">", "").replace("%", "")
+        try:
+            val = float(c)
+            clauses.append("p.cost_overrun_pct >= ?")
+            params.append(val)
+        except ValueError:
+            pass
+            
+    if land_status and land_status.strip():
+        ls = land_status.strip().upper()
+        if ls in ("COMPLETE", "ACQUISITION COMPLETE"):
+            clauses.append("s.land_acquired_pct >= 90.0")
+        elif ls in ("PROGRESS", "IN PROGRESS"):
+            clauses.append("(s.land_acquired_pct >= 50.0 AND s.land_acquired_pct < 90.0)")
+        elif ls in ("PENDING", "LAND PENDING"):
+            clauses.append("s.land_acquired_pct < 50.0")
+        elif ls in ("DISPUTE", "LEGAL DISPUTE"):
+            clauses.append("s.active_legal_disputes > 0")
+        elif ls in ("CLEARANCE", "CLEARANCE PENDING"):
+            clauses.append("(s.land_clearance_status LIKE '%Pending%' OR s.land_clearance_status LIKE '%Stage-I%')")
+            
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        clauses.append("(p.project_name LIKE ? OR CAST(p.project_code AS TEXT) LIKE ? OR s.inferred_state LIKE ? OR s.district LIKE ? OR p.sector_name LIKE ?)")
+        params.extend([q, q, q, q, q])
+        
+    where_sql = " AND ".join(clauses)
+    
+    query = f"""
+        SELECT 
+            p.project_code,
+            p.project_name,
+            p.sector_name,
+            p.line_ministry,
+            p.original_cost_cr,
+            p.revised_cost_cr,
+            p.expenditure_cr,
+            p.cost_overrun_pct,
+            p.is_delayed,
+            p.schedule_delay_days,
+            p.original_end_date,
+            p.revised_end_date,
+            s.inferred_state,
+            s.district,
+            s.latitude,
+            s.longitude,
+            s.land_required_acres,
+            s.land_acquired_pct,
+            s.land_clearance_status,
+            s.active_legal_disputes,
+            s.affected_families_count,
+            s.rehabilitation_package_cr
+        FROM projects p
+        JOIN simulated_land_gis s ON p.project_code = s.project_code
+        WHERE {where_sql}
+        ORDER BY p.original_cost_cr DESC
+        LIMIT {limit};
+    """
+    
+    cursor.execute(adapt_query(query), params)
+    rows = [dict(r) for r in cursor.fetchall()]
+    
+    total = len(rows)
+    delayed_cnt = 0
+    critical_cnt = 0
+    high_cnt = 0
+    total_sanctioned = 0.0
+    total_revised = 0.0
+    total_disputes = 0
+    total_delay_days = 0.0
+    total_acquired_pct = 0.0
+    
+    for r in rows:
+        del_days = r["schedule_delay_days"] or 0
+        disp = r["active_legal_disputes"] or 0
+        orig_c = r["original_cost_cr"] or 0
+        rev_c = r["revised_cost_cr"] or orig_c
+        acq_pct = r["land_acquired_pct"] or 0.0
+        
+        total_sanctioned += orig_c
+        total_revised += rev_c
+        total_disputes += disp
+        total_delay_days += del_days
+        total_acquired_pct += acq_pct
+        
+        if r["is_delayed"] == 1 or del_days > 0:
+            delayed_cnt += 1
+            
+        if del_days > 730 or disp >= 3:
+            r["risk_tier"] = "CRITICAL"
+            critical_cnt += 1
+        elif del_days > 365 or disp >= 2:
+            r["risk_tier"] = "HIGH"
+            high_cnt += 1
+        elif del_days > 90 or disp >= 1:
+            r["risk_tier"] = "MEDIUM"
+        else:
+            r["risk_tier"] = "LOW"
+            
+    avg_delay = round(total_delay_days / max(total, 1), 1)
+    avg_acq = round(total_acquired_pct / max(total, 1), 1)
+    
+    dominant_driver = "Compensation Disbursement (RFCTLARR Sec 23 & 30)"
+    if total_disputes > (total * 0.8):
+        dominant_driver = "Active Legal Injunctions (RFCTLARR Sec 64)"
+    elif avg_acq < 50.0:
+        dominant_driver = "Physical Possession & Eviction (RFCTLARR Sec 38)"
+    elif critical_cnt > (total * 0.3):
+        dominant_driver = "Severe Timeline Slippage & Escalation"
+        
+    conn.close()
+    
+    return {
+        "total": total,
+        "summary": {
+            "total_projects": total,
+            "delayed_projects": delayed_cnt,
+            "critical_projects": critical_cnt,
+            "high_risk_projects": high_cnt,
+            "avg_expected_delay_days": avg_delay,
+            "total_sanctioned_cr": round(total_sanctioned, 2),
+            "total_revised_cr": round(total_revised, 2),
+            "avg_cost_overrun_pct": round(((total_revised - total_sanctioned) / max(total_sanctioned, 1)) * 100, 1) if total_sanctioned > 0 else 0.0,
+            "total_disputes": total_disputes,
+            "avg_land_acquired_pct": avg_acq,
+            "dominant_delay_driver": dominant_driver
+        },
+        "projects": rows,
+        "provenance": "MoSPI PAIMANA Verified Registry (1,981 Projects) • Simulated Land GIS Demonstration Layer"
     }
 
 @app.get("/api/v1/gis/drilldown", tags=["Spatial Analytics"])
@@ -1959,13 +2710,38 @@ def legacy_model_insights():
     }
 
 # ---------------------------------------------------------------
+# 4b. AI Assistant Router (Google Gemini Powered)
+# ---------------------------------------------------------------
+try:
+    from backend.assistant.routes import router as assistant_router
+    app.include_router(assistant_router, prefix="/api/v1/assistant", tags=["AI Assistant"])
+    app.include_router(assistant_router, prefix="/api/assistant", tags=["AI Assistant (Legacy Alias)"], include_in_schema=False)
+except Exception as e:
+    print(f"[ASSISTANT WARNING] Could not mount assistant router: {e}")
+
+# ---------------------------------------------------------------
 # 5. Static Files & Root Single-Page Application
 # ---------------------------------------------------------------
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 @app.get("/", include_in_schema=False)
 @app.get("/index.html", include_in_schema=False)
+@app.get("/early-warning", include_in_schema=False)
+@app.get("/policy-simulator", include_in_schema=False)
+@app.get("/data-quality-audit", include_in_schema=False)
+@app.get("/what-if-simulator", include_in_schema=False)
+@app.get("/data-audit", include_in_schema=False)
+@app.get("/evaluator", include_in_schema=False)
+@app.get("/simulator", include_in_schema=False)
+@app.get("/audit", include_in_schema=False)
+@app.get("/executive-overview", include_in_schema=False)
+@app.get("/master-explorer", include_in_schema=False)
+@app.get("/critical-alerts", include_in_schema=False)
+@app.get("/land-and-gis-demo", include_in_schema=False)
 def serve_index():
     index_file = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_file):
@@ -1984,6 +2760,37 @@ def serve_style_css():
     css_file = os.path.join(FRONTEND_DIR, "style.css")
     if os.path.exists(css_file):
         return FileResponse(css_file, media_type="text/css", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return Response(status_code=404)
+
+@app.get("/india_states.geojson", include_in_schema=False)
+def serve_india_states_geojson():
+    geo_file = os.path.join(FRONTEND_DIR, "india_states.geojson")
+    if os.path.exists(geo_file):
+        return FileResponse(geo_file, media_type="application/geo+json", headers={"Cache-Control": "public, max-age=86400"})
+    return Response(status_code=404)
+
+@app.get("/leaflet.markercluster.js", include_in_schema=False)
+def serve_markercluster_js():
+    f = os.path.join(FRONTEND_DIR, "leaflet.markercluster.js")
+    if os.path.exists(f):
+        return FileResponse(f, media_type="application/javascript", headers={"Cache-Control": "public, max-age=86400"})
+    from fastapi.responses import Response
+    return Response(status_code=404)
+
+@app.get("/MarkerCluster.css", include_in_schema=False)
+def serve_markercluster_css():
+    f = os.path.join(FRONTEND_DIR, "MarkerCluster.css")
+    if os.path.exists(f):
+        return FileResponse(f, media_type="text/css", headers={"Cache-Control": "public, max-age=86400"})
+    from fastapi.responses import Response
+    return Response(status_code=404)
+
+@app.get("/MarkerCluster.Default.css", include_in_schema=False)
+def serve_markercluster_default_css():
+    f = os.path.join(FRONTEND_DIR, "MarkerCluster.Default.css")
+    if os.path.exists(f):
+        return FileResponse(f, media_type="text/css", headers={"Cache-Control": "public, max-age=86400"})
+    from fastapi.responses import Response
     return Response(status_code=404)
 
 if __name__ == "__main__":

@@ -60,7 +60,8 @@ def evaluate_land_acquisition_bottleneck(
     affected_families_count: int = 0,
     rehabilitation_package_cr: float = 0.0,
     land_clearance_status: str = "In Progress",
-    cost_cr: float = 500.0
+    cost_cr: float = 500.0,
+    current_stage: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Evaluates statutory land acquisition risk parameters and deterministically
@@ -119,6 +120,13 @@ def evaluate_land_acquisition_bottleneck(
         possession_risk = possession_gap * 0.50
         evidence_map["PHYSICAL_POSSESSION"] = f"Site possession dependent on prior award disbursement and boundary demarcation ({land_acquired_pct:.1f}% handed over)"
     stage_scores["PHYSICAL_POSSESSION"] = possession_risk
+
+    # Incorporate user-selected active statutory stage if provided
+    if current_stage:
+        norm_stage = current_stage.replace("STAGE_", "").strip().upper()
+        if norm_stage in stage_scores:
+            stage_scores[norm_stage] = min(1.0, stage_scores[norm_stage] + 0.12)
+            evidence_map[norm_stage] = f"[Active Inception Stage: {norm_stage}] " + evidence_map.get(norm_stage, "")
 
     # Isolate primary bottleneck
     sorted_stages = sorted(stage_scores.items(), key=lambda x: x[1], reverse=True)

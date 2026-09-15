@@ -23,6 +23,8 @@ if IS_SERVERLESS:
 else:
     DB_PATH = BUNDLED_DB
 
+_sqlite_wal_configured = False
+
 # ---------------------------------------------------------------
 # PostgreSQL Engine — NullPool for serverless (Vercel) compatibility.
 # NullPool ensures each request opens/closes its own connection
@@ -103,8 +105,15 @@ def get_db_connection():
 
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    global _sqlite_wal_configured
+    if not _sqlite_wal_configured:
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            _sqlite_wal_configured = True
+        except Exception:
+            pass
     try:
-        conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA busy_timeout=30000;")
     except Exception:
         pass
@@ -813,6 +822,13 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+    try:
+        from backend.assistant.database import init_assistant_tables
+        init_assistant_tables()
+    except Exception as _e:
+        print(f"[ASSISTANT DB NOTICE] Assistant tables init note: {_e}")
+
     print(f"Database schema verified & initialized ({'PostgreSQL' if IS_POSTGRES else 'SQLite'}).")
 
 def record_audit_log(

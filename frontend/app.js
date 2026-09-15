@@ -238,6 +238,10 @@ function switchNav(navId) {
     activePane.style.setProperty('display', 'flex', 'important');
   }
 
+  if (typeof updateAssistantContextBar === 'function') {
+    updateAssistantContextBar();
+  }
+
   // Scroll to top of viewport on navigation
   window.scrollTo({ top: 0, behavior: 'instant' });
 
@@ -676,11 +680,15 @@ function renderProjectsTable(projects) {
 function selectProjectInExplorer(p, tr) {
   selectedProject = p;
   window.selectedExplorerProject = p;
+  window.selectedProject = p;
 
   document.querySelectorAll('#projects-tbody tr').forEach(r => r.classList.remove('row-selected'));
   if (tr) tr.classList.add('row-selected');
 
   updateExplorerShapPanel(p);
+  if (typeof updateAssistantContextBar === 'function') {
+    updateAssistantContextBar();
+  }
 }
 
 function updateExplorerShapPanel(p) {
@@ -925,7 +933,156 @@ function populateDropdowns() {
 // =========================================================================
 // 4. Inception Early Warning & Risk Evaluator
 // =========================================================================
+
+const SECTOR_MINISTRY_MAP = {
+  "Roads & Highways": "Ministry of Road Transport & Highways",
+  "Railways": "Ministry of Railways",
+  "Power": "Ministry of Power",
+  "Petroleum": "Ministry of Petroleum & Natural Gas",
+  "Coal": "Ministry of Coal",
+  "Steel": "Ministry of Steel",
+  "Civil Aviation": "Ministry of Civil Aviation",
+  "Shipping & Ports": "Ministry of Ports, Shipping and Waterways",
+  "Telecommunications": "Ministry of Communications",
+  "Urban Development": "Ministry of Housing and Urban Affairs"
+};
+
+function onEvalSectorChange() {
+  const sectorEl = document.getElementById('eval-sector');
+  const ministryEl = document.getElementById('eval-ministry');
+  if (!sectorEl) return;
+  const sector = sectorEl.value;
+  if (ministryEl && sector && SECTOR_MINISTRY_MAP[sector]) {
+    // If ministry select contains this option, select it; otherwise add or set value
+    let found = false;
+    for (let opt of ministryEl.options) {
+      if (opt.value === SECTOR_MINISTRY_MAP[sector] || opt.text.includes(sector)) {
+        opt.selected = true;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = SECTOR_MINISTRY_MAP[sector];
+      opt.textContent = SECTOR_MINISTRY_MAP[sector];
+      opt.selected = true;
+      ministryEl.appendChild(opt);
+    }
+  }
+  validateField('eval-sector');
+  if (ministryEl && ministryEl.value) validateField('eval-ministry');
+}
+
+function validateField(fieldId) {
+  const el = document.getElementById(fieldId);
+  const errEl = document.getElementById(`err-${fieldId}`);
+  if (!el) return true;
+  let isValid = true;
+  const val = el.value !== undefined ? String(el.value).trim() : '';
+
+  if (fieldId === 'eval-sector' || fieldId === 'eval-ministry') {
+    isValid = val !== '';
+  } else if (fieldId === 'eval-cost') {
+    const num = parseFloat(val);
+    isValid = !isNaN(num) && num > 0;
+  } else if (fieldId === 'eval-year') {
+    const num = parseInt(val, 10);
+    isValid = !isNaN(num) && num >= 2000 && num <= 2050;
+  } else if (fieldId === 'eval-land-req') {
+    const num = parseFloat(val);
+    isValid = !isNaN(num) && num > 0;
+  } else if (fieldId === 'eval-land-acq' || fieldId === 'eval-comp-disbursed') {
+    const num = parseFloat(val);
+    isValid = !isNaN(num) && num >= 0 && num <= 100;
+  } else if (fieldId === 'eval-disputes' || fieldId === 'eval-families') {
+    const num = parseInt(val, 10);
+    isValid = !isNaN(num) && num >= 0;
+  } else if (fieldId === 'eval-rehab-pkg') {
+    const num = parseFloat(val);
+    isValid = !isNaN(num) && num >= 0;
+  }
+
+  if (errEl) {
+    if (isValid) {
+      errEl.classList.add('hidden');
+      el.classList.remove('border-error');
+    } else {
+      errEl.classList.remove('hidden');
+      el.classList.add('border-error');
+    }
+  }
+  return isValid;
+}
+
+function validateEvaluatorInputs() {
+  const fields = [
+    'eval-sector', 'eval-ministry', 'eval-cost', 'eval-year',
+    'eval-land-req', 'eval-land-acq', 'eval-comp-disbursed',
+    'eval-disputes', 'eval-families', 'eval-rehab-pkg'
+  ];
+  let allValid = true;
+  fields.forEach(f => {
+    if (!validateField(f)) allValid = false;
+  });
+  return allValid;
+}
+
+function resetEarlyWarningEvaluator() {
+  const form = document.getElementById('evaluator-form');
+  if (form) form.reset();
+  const placeholder = document.getElementById('eval-placeholder');
+  const output = document.getElementById('eval-output');
+  if (placeholder) {
+    placeholder.classList.remove('hidden');
+    placeholder.style.display = 'flex';
+  }
+  if (output) {
+    output.classList.add('hidden');
+    output.style.display = 'none';
+  }
+  const errorIds = [
+    'err-eval-sector', 'err-eval-ministry', 'err-eval-cost', 'err-eval-year',
+    'err-eval-land-req', 'err-eval-land-acq', 'err-eval-comp-disbursed',
+    'err-eval-disputes', 'err-eval-families', 'err-eval-rehab-pkg'
+  ];
+  errorIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+}
+
+function clearEvaluatorProjectContext() {
+  const sel = document.getElementById('eval-project-selector');
+  if (sel) sel.value = '';
+  const search = document.getElementById('eval-project-search');
+  if (search) search.value = '';
+}
+
+function evaluateSelectedProject(projectCode) {
+  if (!projectCode) return;
+  const sel = document.getElementById('eval-project-selector');
+  if (sel) sel.value = String(projectCode);
+  switchNav('early-warning');
+  runEarlyWarningEvaluation();
+}
+
+function addEvaluatorAlert() {
+  const probVal = document.getElementById('eval-prob-val')?.textContent || '50%';
+  const tierText = document.getElementById('eval-tier-text')?.textContent || 'HIGH RISK';
+  const sector = document.getElementById('eval-sector')?.value || 'General Infrastructure';
+  showToast(`Alert dispatched to Project Monitoring Group: ${tierText} (${probVal} delay probability).`, 'success');
+}
+
+function simulateEvaluatorParameters() {
+  switchNav('simulator');
+}
+
 function runEarlyWarningEvaluation() {
+  if (!validateEvaluatorInputs()) {
+    showToast('Please correct the validation errors in the evaluator form.', 'warning');
+    return;
+  }
   handleEvaluation({ preventDefault: () => {} });
 }
 
@@ -1615,6 +1772,11 @@ async function openProjectModal(code) {
     const data = await res.json();
     const p = data.project;
     const ai = data.ai_intelligence;
+    selectedProject = p;
+    window.selectedProject = p;
+    if (typeof updateAssistantContextBar === 'function') {
+      updateAssistantContextBar();
+    }
 
     document.getElementById('modal-code').textContent = `#${p.project_code}`;
     document.getElementById('modal-title').textContent = p.project_name;
@@ -2600,7 +2762,15 @@ window.openProjectModal = openProjectModal;
 window.closeModal = closeModal;
 window.closeProjectModal = closeProjectModal;
 window.simulateFromAudit = simulateFromAudit;
+window.onEvalSectorChange = onEvalSectorChange;
+window.validateField = validateField;
+window.validateEvaluatorInputs = validateEvaluatorInputs;
 window.runEarlyWarningEvaluation = runEarlyWarningEvaluation;
+window.resetEarlyWarningEvaluator = resetEarlyWarningEvaluator;
+window.clearEvaluatorProjectContext = clearEvaluatorProjectContext;
+window.evaluateSelectedProject = evaluateSelectedProject;
+window.addEvaluatorAlert = addEvaluatorAlert;
+window.simulateEvaluatorParameters = simulateEvaluatorParameters;
 window.runSimulation = runSimulation;
 window.resetSimulatorKnobs = resetSimulatorKnobs;
 window.submitInterventionEGoS = submitInterventionEGoS;
@@ -2617,3 +2787,1208 @@ window.toggleTickerAutoplay = toggleTickerAutoplay;
 window.toggleLanguage = toggleLanguage;
 window.initWhatsNewTicker = initWhatsNewTicker;
 
+// ============================================================================
+// OFFICIAL AI INFRASTRUCTURE ASSISTANT (GOOGLE GEMINI INTEGRATION)
+// ============================================================================
+
+let assistantIsOpen = false;
+let assistantIsGenerating = false;
+let assistantAbortController = null;
+let assistantHistory = [];
+let assistantStatusChecked = false;
+
+let assistantActiveConversationId = null;
+let assistantActiveChatMode = '30-day';
+let assistantActiveTitle = 'New Conversation';
+let assistantActiveIsPermanent = false;
+let assistantConversationToDelete = null;
+let assistantHistorySearchTimer = null;
+
+// Load stored session history & conversation ID
+try {
+  const savedHist = sessionStorage.getItem('sih_assistant_history');
+  if (savedHist) {
+    assistantHistory = JSON.parse(savedHist);
+  }
+  const savedConvId = sessionStorage.getItem('sih_assistant_conversation_id');
+  if (savedConvId) {
+    assistantActiveConversationId = savedConvId;
+  }
+} catch (e) {
+  assistantHistory = [];
+}
+
+function getAssistantContext() {
+  let projectCode = null;
+  let projectName = null;
+
+  if (window.selectedProject && window.selectedProject.project_code) {
+    projectCode = window.selectedProject.project_code;
+    projectName = window.selectedProject.project_name || window.selectedProject.name || '';
+  } else if (typeof activeEvaluationProjectCode !== 'undefined' && activeEvaluationProjectCode) {
+    projectCode = activeEvaluationProjectCode;
+  } else if (typeof activeModalProjectCode !== 'undefined' && activeModalProjectCode) {
+    projectCode = activeModalProjectCode;
+  } else {
+    const simSelect = document.getElementById('sim-project-select');
+    if (simSelect && simSelect.value) {
+      projectCode = parseInt(simSelect.value);
+    }
+  }
+
+  const tabNames = {
+    'overview': 'Executive Overview',
+    'explorer': 'Projects Explorer',
+    'evaluator': 'Early Warning System',
+    'simulator': 'Policy Simulator',
+    'alerts': 'Critical Alerts',
+    'land': 'GIS & Land Acquisition',
+    'audit': 'Data Quality Audit'
+  };
+
+  return {
+    current_page: currentNav || 'overview',
+    current_tab_name: tabNames[currentNav] || (currentNav || 'Overview'),
+    selected_project_code: projectCode ? parseInt(projectCode) : null,
+    selected_project_name: projectName || (projectCode ? `Project #${projectCode}` : null),
+    user_role: currentRole || 'STATE_OFFICER'
+  };
+}
+
+function updateAssistantContextBar() {
+  const ctx = getAssistantContext();
+  const tabEl = document.getElementById('assistant-context-tab-label');
+  const projEl = document.getElementById('assistant-context-project-label');
+
+  if (tabEl) tabEl.textContent = ctx.current_tab_name;
+  if (projEl) {
+    if (ctx.selected_project_code) {
+      projEl.textContent = `Project #${ctx.selected_project_code}${ctx.selected_project_name ? ' (' + ctx.selected_project_name + ')' : ''}`;
+      projEl.classList.remove('italic', 'text-slate-600');
+      projEl.classList.add('font-semibold', 'text-emerald-700');
+    } else {
+      projEl.textContent = 'No project focused';
+      projEl.classList.remove('font-semibold', 'text-emerald-700');
+      projEl.classList.add('italic', 'text-slate-600');
+    }
+  }
+}
+
+async function checkAssistantHealth() {
+  try {
+    const resp = await authFetch('/api/v1/assistant/status');
+    if (resp.ok) {
+      const data = await resp.json();
+      const dot = document.getElementById('assistant-fab-status-dot');
+      const connInd = document.getElementById('assistant-conn-indicator');
+      const badge = document.getElementById('assistant-header-model-badge');
+      const desc = document.getElementById('assistant-status-desc');
+
+      if (data.is_ready) {
+        if (dot) dot.style.background = '#10b981';
+        if (connInd) connInd.style.background = '#10b981';
+        if (desc) desc.textContent = 'Connected to Google Gemini (Ready)';
+      } else {
+        if (dot) dot.style.background = '#f59e0b';
+        if (connInd) connInd.style.background = '#f59e0b';
+        if (desc) desc.textContent = 'MoSPI PAIMANA Standby';
+      }
+      if (badge && data.model) {
+        badge.textContent = data.model.replace('gemini-', 'Gemini ');
+      }
+    }
+  } catch (err) {
+    console.warn('[Assistant] Health check notice:', err);
+  }
+}
+
+function toggleAssistantDrawer() {
+  if (assistantIsOpen) {
+    closeAssistantDrawer();
+  } else {
+    openAssistantDrawer();
+  }
+}
+
+function openAssistantDrawer() {
+  const drawer = document.getElementById('gov-ai-assistant-drawer');
+  const fab = document.getElementById('gov-ai-assistant-fab');
+  if (!drawer) return;
+
+  assistantIsOpen = true;
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  if (fab) fab.setAttribute('aria-expanded', 'true');
+
+  updateAssistantContextBar();
+
+  if (!assistantStatusChecked) {
+    checkAssistantHealth();
+    assistantStatusChecked = true;
+  }
+
+  // Restore history messages into UI if needed
+  restoreAssistantHistoryUI();
+
+  // Focus input
+  const inputEl = document.getElementById('assistant-input-text');
+  if (inputEl) {
+    setTimeout(() => inputEl.focus(), 300);
+  }
+
+  scrollAssistantToBottom();
+}
+
+function closeAssistantDrawer() {
+  const drawer = document.getElementById('gov-ai-assistant-drawer');
+  const fab = document.getElementById('gov-ai-assistant-fab');
+  if (!drawer) return;
+
+  assistantIsOpen = false;
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  if (fab) fab.setAttribute('aria-expanded', 'false');
+}
+
+// Close drawer on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && assistantIsOpen) {
+    closeAssistantDrawer();
+  }
+});
+
+function autoResizeAssistantInput(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  const counter = document.getElementById('assistant-char-counter');
+  if (counter) {
+    counter.textContent = `${el.value.length} / 2000`;
+  }
+}
+
+function handleAssistantInputKeydown(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    if (!assistantIsGenerating) {
+      handleAssistantSubmit(event);
+    }
+  }
+}
+
+function sendAssistantSuggestedPrompt(promptText) {
+  if (!promptText || assistantIsGenerating) return;
+  const inputEl = document.getElementById('assistant-input-text');
+  if (inputEl) inputEl.value = promptText.trim();
+  sendAssistantMessage(promptText.trim());
+}
+
+function handleAssistantSubmit(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (assistantIsGenerating) return;
+  const inputEl = document.getElementById('assistant-input-text');
+  if (!inputEl) return;
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = '';
+  autoResizeAssistantInput(inputEl);
+  sendAssistantMessage(text);
+}
+
+function scrollAssistantToBottom() {
+  const container = document.getElementById('assistant-messages-container');
+  if (container) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function safeEscapeHTML(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderAssistantMarkdown(rawText) {
+  if (!rawText) return '';
+
+  // 1. Escape HTML
+  let out = safeEscapeHTML(rawText);
+
+  // 2. Code blocks (```code```)
+  out = out.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
+  });
+
+  // 3. Inline code (`code`)
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // 4. Tables (| col | col |)
+  const lines = out.split('\n');
+  let inTable = false;
+  let tableHTML = '';
+  let processedLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (!inTable) {
+        inTable = true;
+        tableHTML = '<table><tbody>';
+      }
+      // Check if it's separator row (|---|---|)
+      if (/^\|[-:\s|]+\|$/.test(line)) {
+        continue;
+      }
+      const cells = line.split('|').slice(1, -1);
+      const isHeader = (!tableHTML.includes('<tr>'));
+      const tag = isHeader ? 'th' : 'td';
+      tableHTML += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    } else {
+      if (inTable) {
+        tableHTML += '</tbody></table>';
+        processedLines.push(tableHTML);
+        inTable = false;
+        tableHTML = '';
+      }
+      processedLines.push(lines[i]);
+    }
+  }
+  if (inTable) {
+    tableHTML += '</tbody></table>';
+    processedLines.push(tableHTML);
+  }
+  out = processedLines.join('\n');
+
+  // 5. Headers (###, ##, #)
+  out = out.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+  out = out.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+  out = out.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+
+  // 6. Bold & Italic
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // 7. Bullet lists (- or *)
+  out = out.replace(/^\s*[-*]\s+(.*$)/gim, '<li>$1</li>');
+  out = out.replace(/(<li>.*<\/li>)/gms, '<ul>$1</ul>');
+  // Clean up adjacent <ul> tags
+  out = out.replace(/<\/ul>\s*<ul>/g, '');
+
+  // 8. Paragraphs and linebreaks
+  out = out.replace(/\n\n+/g, '</p><p>');
+  out = out.replace(/\n/g, '<br/>');
+
+  return `<p>${out}</p>`;
+}
+
+function restoreAssistantHistoryUI() {
+  const container = document.getElementById('assistant-messages-container');
+  if (!container) return;
+
+  // If already populated with items other than welcome message, do nothing
+  const existingMsgs = container.querySelectorAll('.gov-assistant-msg:not(#assistant-welcome-msg)');
+  if (existingMsgs.length > 0) return;
+
+  if (assistantHistory && assistantHistory.length > 0) {
+    assistantHistory.forEach(item => {
+      appendAssistantMessageNode(item.role, item.content, item.tools_called, item.client_actions);
+    });
+  }
+}
+
+function appendAssistantMessageNode(role, text, toolsCalled = [], clientActions = []) {
+  const container = document.getElementById('assistant-messages-container');
+  if (!container) return null;
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `gov-assistant-msg ${role === 'user' ? 'user-entry' : 'assistant-entry'}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'gov-assistant-msg-avatar';
+  avatar.innerHTML = `<span class="material-symbols-outlined text-[16px]">${role === 'user' ? 'person' : 'smart_toy'}</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'gov-assistant-msg-body';
+
+  // Tools called badges
+  if (toolsCalled && toolsCalled.length > 0) {
+    const toolWrap = document.createElement('div');
+    toolWrap.className = 'flex flex-wrap gap-1 mb-1.5';
+    toolsCalled.forEach(tName => {
+      const toolPill = document.createElement('span');
+      toolPill.className = 'assistant-tool-badge';
+      const cleanName = tName.replace(/_/g, ' ');
+      toolPill.innerHTML = `<span class="material-symbols-outlined text-[11px]">database</span> ${cleanName}`;
+      toolWrap.appendChild(toolPill);
+    });
+    body.appendChild(toolWrap);
+  }
+
+  // Text content
+  const contentWrap = document.createElement('div');
+  contentWrap.className = 'assistant-text-content';
+  if (role === 'user') {
+    contentWrap.textContent = text;
+  } else {
+    contentWrap.innerHTML = renderAssistantMarkdown(text);
+  }
+  body.appendChild(contentWrap);
+
+  // Client actions
+  if (clientActions && clientActions.length > 0) {
+    const actionsWrap = document.createElement('div');
+    actionsWrap.className = 'flex flex-wrap gap-1 mt-2 pt-1 border-t border-slate-200/60';
+    clientActions.forEach(act => {
+      const actBtn = document.createElement('button');
+      actBtn.className = 'assistant-action-btn';
+      let icon = 'open_in_new';
+      let label = act.action || 'Navigate';
+
+      if (act.action === 'navigate_tab') {
+        icon = 'tab';
+        label = `Open ${act.target_tab ? act.target_tab.toUpperCase() : 'Tab'}`;
+      } else if (act.action === 'open_project_dossier') {
+        icon = 'folder_open';
+        label = `View Project #${act.project_code || ''} Details`;
+      } else if (act.action === 'filter_projects') {
+        icon = 'filter_alt';
+        label = 'Filter Projects Explorer';
+      }
+
+      actBtn.innerHTML = `<span class="material-symbols-outlined text-[13px]">${icon}</span> ${label}`;
+      actBtn.onclick = () => executeAssistantClientAction(act);
+      actionsWrap.appendChild(actBtn);
+    });
+    body.appendChild(actionsWrap);
+  }
+
+  // Action buttons on assistant response (copy, regenerate)
+  if (role === 'assistant') {
+    const metaWrap = document.createElement('div');
+    metaWrap.className = 'gov-assistant-msg-actions';
+    metaWrap.innerHTML = `
+      <button class="gov-assistant-msg-action-btn" onclick="copyAssistantMessageText(this)" title="Copy text">
+        <span class="material-symbols-outlined text-[12px]">content_copy</span> Copy
+      </button>
+      <button class="gov-assistant-msg-action-btn" onclick="retryLastAssistantTurn()" title="Regenerate answer">
+        <span class="material-symbols-outlined text-[12px]">refresh</span> Retry
+      </button>
+    `;
+    body.appendChild(metaWrap);
+  }
+
+  msgDiv.appendChild(avatar);
+  msgDiv.appendChild(body);
+  container.appendChild(msgDiv);
+  scrollAssistantToBottom();
+
+  return { msgDiv, body, contentWrap };
+}
+
+function copyAssistantMessageText(btn) {
+  if (!btn) return;
+  const body = btn.closest('.gov-assistant-msg-body');
+  if (!body) return;
+  const textContent = body.querySelector('.assistant-text-content');
+  if (textContent) {
+    const raw = textContent.innerText || textContent.textContent;
+    navigator.clipboard.writeText(raw).then(() => {
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[12px] text-emerald-600">check</span> Copied!`;
+      setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+    });
+  }
+}
+
+function retryLastAssistantTurn() {
+  if (assistantIsGenerating) return;
+  // Find last user message
+  for (let i = assistantHistory.length - 1; i >= 0; i--) {
+    if (assistantHistory[i].role === 'user') {
+      const lastText = assistantHistory[i].content;
+      sendAssistantMessage(lastText);
+      return;
+    }
+  }
+}
+
+function executeAssistantClientAction(actionObj) {
+  if (!actionObj || !actionObj.action) return;
+  const act = actionObj.action;
+
+  if (act === 'navigate_tab' && actionObj.target_tab) {
+    if (typeof switchNav === 'function') {
+      switchNav(actionObj.target_tab);
+      showToast(`Navigated to ${actionObj.target_tab} view.`, 'info');
+      updateAssistantContextBar();
+    }
+  } else if (act === 'open_project_dossier' && actionObj.project_code) {
+    if (typeof openProjectModal === 'function') {
+      openProjectModal(actionObj.project_code);
+      showToast(`Opening Dossier for Project #${actionObj.project_code}`, 'info');
+      updateAssistantContextBar();
+    }
+  } else if (act === 'filter_projects') {
+    if (typeof switchNav === 'function') switchNav('explorer');
+    const searchInput = document.getElementById('project-search');
+    if (searchInput && actionObj.project_code) {
+      searchInput.value = actionObj.project_code;
+      searchInput.dispatchEvent(new Event('input'));
+    }
+  }
+}
+
+async function sendAssistantMessage(userText) {
+  if (!userText || assistantIsGenerating) return;
+
+  assistantIsGenerating = true;
+  assistantAbortController = new AbortController();
+
+  // Update context bar in case user switched tabs/projects
+  updateAssistantContextBar();
+
+  // Append user message node
+  appendAssistantMessageNode('user', userText);
+  assistantHistory.push({ role: 'user', content: userText });
+
+  // Update typing indicator
+  const typingIndicator = document.getElementById('assistant-typing-indicator');
+  const typingText = document.getElementById('assistant-typing-status-text');
+  const sendBtn = document.getElementById('assistant-send-btn');
+  if (typingIndicator) typingIndicator.classList.remove('hidden');
+  if (typingText) typingText.textContent = 'Gemini is analyzing infrastructure telemetry...';
+  if (sendBtn) sendBtn.disabled = true;
+
+  scrollAssistantToBottom();
+
+  const activeContext = getAssistantContext();
+  const requestPayload = {
+    message: userText,
+    history: assistantHistory.slice(-8), // Pass recent turns
+    conversation_id: assistantActiveConversationId,
+    chat_mode: assistantActiveChatMode,
+    context: {
+      current_page: activeContext.current_page,
+      selected_project_code: activeContext.selected_project_code,
+      selected_project_name: activeContext.selected_project_name,
+      user_role: activeContext.user_role
+    }
+  };
+
+  // Create temporary assistant node for streaming
+  const assistantBubble = appendAssistantMessageNode('assistant', '', [], []);
+  let fullText = '';
+  let toolsCalled = [];
+  let clientActions = [];
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/assistant/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+      },
+      body: JSON.stringify(requestPayload),
+      signal: assistantAbortController.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned HTTP ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep partial line in buffer
+
+      let currentEventName = 'message';
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          currentEventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          const rawData = line.slice(5).trim();
+          if (!rawData) continue;
+
+          try {
+            const parsed = JSON.parse(rawData);
+
+            if (currentEventName === 'conversation') {
+              if (parsed.conversation_id) {
+                assistantActiveConversationId = parsed.conversation_id;
+                try {
+                  sessionStorage.setItem('sih_assistant_conversation_id', assistantActiveConversationId);
+                } catch (e) {}
+              }
+              if (parsed.title) {
+                assistantActiveTitle = parsed.title;
+                updateAssistantTitleUI(assistantActiveTitle);
+              }
+              if (parsed.chat_mode) {
+                assistantActiveChatMode = parsed.chat_mode;
+                updateAssistantModeUI(parsed.chat_mode);
+              }
+            } else if (currentEventName === 'tool_start' || currentEventName === 'tool_call') {
+              if (typingText) {
+                typingText.textContent = `Executing tool: ${parsed.tool || 'database query'}...`;
+              }
+            } else if (currentEventName === 'tool_result') {
+              if (parsed.tool && !toolsCalled.includes(parsed.tool)) {
+                toolsCalled.push(parsed.tool);
+              }
+            } else if (currentEventName === 'token' || currentEventName === 'delta') {
+              const textPiece = parsed.token || parsed.text || '';
+              fullText += textPiece;
+              if (assistantBubble && assistantBubble.contentWrap) {
+                assistantBubble.contentWrap.innerHTML = renderAssistantMarkdown(fullText);
+              }
+              scrollAssistantToBottom();
+            } else if (currentEventName === 'client_actions') {
+              if (Array.isArray(parsed.actions)) {
+                parsed.actions.forEach(act => {
+                  clientActions.push(act);
+                  executeAssistantClientAction(act);
+                });
+              }
+            } else if (currentEventName === 'client_action') {
+              clientActions.push(parsed);
+              executeAssistantClientAction(parsed);
+            } else if (currentEventName === 'complete' || currentEventName === 'done') {
+              if (parsed.text) fullText = parsed.text;
+              if (parsed.tools_called) toolsCalled = parsed.tools_called;
+              if (parsed.client_actions) clientActions = parsed.client_actions;
+            } else if (currentEventName === 'error') {
+              fullText = parsed.message || 'An unexpected error occurred while communicating with Gemini.';
+            }
+          } catch (pe) {
+            // Raw text or non-json event
+          }
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      fullText += '\n\n*(Generation stopped by user)*';
+    } else {
+      console.error('[Assistant] Stream error, attempting non-streaming fallback:', err);
+      // Non-streaming fallback
+      try {
+        const fbResp = await authFetch('/api/v1/assistant/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload)
+        });
+        if (fbResp.ok) {
+          const fbData = await fbResp.json();
+          fullText = fbData.text || 'AI Assistant is temporarily unavailable. Please try again.';
+          toolsCalled = fbData.tools_called || [];
+          clientActions = fbData.client_actions || [];
+          if (clientActions.length > 0) {
+            clientActions.forEach(executeAssistantClientAction);
+          }
+        } else {
+          fullText = 'AI Assistant is temporarily unavailable. Please verify connectivity or configure GEMINI_API_KEY.';
+        }
+      } catch (fbErr) {
+        fullText = 'AI Assistant is temporarily unavailable. Please try again later.';
+      }
+    }
+  } finally {
+    // Finalize assistant bubble
+    if (assistantBubble && assistantBubble.contentWrap) {
+      assistantBubble.contentWrap.innerHTML = renderAssistantMarkdown(fullText);
+    }
+
+    // Add to history and persist
+    assistantHistory.push({
+      role: 'assistant',
+      content: fullText,
+      tools_called: toolsCalled,
+      client_actions: clientActions
+    });
+
+    try {
+      sessionStorage.setItem('sih_assistant_history', JSON.stringify(assistantHistory.slice(-20)));
+    } catch (e) {
+      // Storage error ignored
+    }
+
+    assistantIsGenerating = false;
+    assistantAbortController = null;
+    if (typingIndicator) typingIndicator.classList.add('hidden');
+    if (sendBtn) sendBtn.disabled = false;
+    scrollAssistantToBottom();
+  }
+}
+
+function stopAssistantGeneration() {
+  if (assistantAbortController) {
+    assistantAbortController.abort();
+  }
+  assistantIsGenerating = false;
+  const typingIndicator = document.getElementById('assistant-typing-indicator');
+  const sendBtn = document.getElementById('assistant-send-btn');
+  if (typingIndicator) typingIndicator.classList.add('hidden');
+  if (sendBtn) sendBtn.disabled = false;
+}
+
+function startNewAssistantChat(mode = null) {
+  if (assistantIsGenerating) stopAssistantGeneration();
+  assistantHistory = [];
+  assistantActiveConversationId = null;
+  assistantActiveTitle = 'New Conversation';
+  if (mode) {
+    assistantActiveChatMode = mode;
+  }
+  assistantActiveIsPermanent = (assistantActiveChatMode === 'permanent');
+
+  updateAssistantTitleUI('New Conversation');
+  updateAssistantModeUI(assistantActiveChatMode);
+  updatePermanentToggleUI(assistantActiveIsPermanent);
+
+  try {
+    sessionStorage.removeItem('sih_assistant_history');
+    sessionStorage.removeItem('sih_assistant_conversation_id');
+  } catch (e) {}
+
+  const container = document.getElementById('assistant-messages-container');
+  if (container) {
+    // Keep only welcome message
+    const welcome = document.getElementById('assistant-welcome-msg');
+    container.innerHTML = '';
+    if (welcome) container.appendChild(welcome);
+  }
+
+  // Inform backend
+  authFetch('/api/v1/assistant/reset', { method: 'POST' }).catch(() => {});
+  showToast('New AI Assistant conversation started.', 'info');
+  updateAssistantContextBar();
+}
+
+function clearAssistantChat() {
+  startNewAssistantChat();
+}
+
+// -----------------------------------------------------------------------------
+// Conversation Persistence & History UI Controller
+// -----------------------------------------------------------------------------
+
+function updateAssistantTitleUI(title) {
+  const titleEl = document.getElementById('assistant-active-title');
+  if (titleEl) {
+    titleEl.textContent = title || 'New Conversation';
+    titleEl.title = title || 'New Conversation';
+  }
+}
+
+function updateAssistantModeUI(mode) {
+  assistantActiveChatMode = mode || '30-day';
+  const labelEl = document.getElementById('assistant-mode-label');
+  const iconEl = document.getElementById('assistant-mode-icon');
+  const tempBanner = document.getElementById('assistant-temporary-banner');
+
+  if (labelEl) {
+    if (mode === 'temporary') labelEl.textContent = 'Temporary';
+    else if (mode === 'permanent') labelEl.textContent = 'Permanent';
+    else labelEl.textContent = '30-Day';
+  }
+
+  if (iconEl) {
+    if (mode === 'temporary') {
+      iconEl.textContent = 'lock_clock';
+      iconEl.className = 'material-symbols-outlined text-[13px] text-amber-700';
+    } else if (mode === 'permanent') {
+      iconEl.textContent = 'bookmark';
+      iconEl.className = 'material-symbols-outlined text-[13px] text-emerald-700';
+    } else {
+      iconEl.textContent = 'schedule';
+      iconEl.className = 'material-symbols-outlined text-[13px] text-blue-700';
+    }
+  }
+
+  if (tempBanner) {
+    if (mode === 'temporary') tempBanner.classList.remove('hidden');
+    else tempBanner.classList.add('hidden');
+  }
+
+  ['temporary', '30-day', 'permanent'].forEach(m => {
+    const item = document.getElementById(`mode-opt-${m}`);
+    if (item) {
+      if (m === mode) item.classList.add('active');
+      else item.classList.remove('active');
+    }
+  });
+
+  updatePermanentToggleUI(mode === 'permanent');
+}
+
+function updatePermanentToggleUI(isPermanent) {
+  assistantActiveIsPermanent = Boolean(isPermanent);
+  const btn = document.getElementById('assistant-perm-toggle-btn');
+  const icon = document.getElementById('assistant-perm-icon');
+  const label = document.getElementById('assistant-perm-label');
+
+  if (!btn || !label || !icon) return;
+
+  if (assistantActiveIsPermanent) {
+    btn.classList.add('is-permanent');
+    icon.textContent = 'bookmark';
+    label.textContent = 'Permanent (Saved)';
+  } else {
+    btn.classList.remove('is-permanent');
+    icon.textContent = 'bookmark_border';
+    label.textContent = 'Save Permanently';
+  }
+}
+
+function toggleAssistantModeDropdown() {
+  const dd = document.getElementById('assistant-mode-dropdown');
+  if (dd) dd.classList.toggle('hidden');
+}
+
+async function selectAssistantChatMode(mode) {
+  const dd = document.getElementById('assistant-mode-dropdown');
+  if (dd) dd.classList.add('hidden');
+  assistantActiveChatMode = mode;
+  updateAssistantModeUI(mode);
+
+  if (assistantActiveConversationId) {
+    try {
+      const isPerm = (mode === 'permanent');
+      await authFetch(`/api/v1/assistant/conversations/${assistantActiveConversationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_mode: mode, is_permanent: isPerm })
+      });
+      showToast(`Conversation updated to ${mode} mode.`, 'success');
+    } catch (e) {
+      console.warn('[Assistant] Failed to update conversation mode on server:', e);
+    }
+  }
+}
+
+function toggleAssistantHistoryPanel() {
+  const panel = document.getElementById('assistant-history-panel');
+  if (!panel) return;
+  if (panel.classList.contains('hidden')) {
+    openAssistantHistoryPanel();
+  } else {
+    closeAssistantHistoryPanel();
+  }
+}
+
+function openAssistantHistoryPanel() {
+  const panel = document.getElementById('assistant-history-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    loadAssistantConversations();
+    const searchInput = document.getElementById('assistant-history-search');
+    if (searchInput) {
+      setTimeout(() => searchInput.focus(), 150);
+    }
+  }
+}
+
+function closeAssistantHistoryPanel() {
+  const panel = document.getElementById('assistant-history-panel');
+  if (panel) panel.classList.add('hidden');
+}
+
+async function loadAssistantConversations(searchQuery = '') {
+  const container = document.getElementById('assistant-history-list');
+  if (!container) return;
+
+  container.innerHTML = '<div class="p-4 text-center text-slate-400 text-xs">Loading conversations...</div>';
+
+  try {
+    let url = '/api/v1/assistant/conversations?limit=30&grouped=true';
+    if (searchQuery && searchQuery.trim().length > 0) {
+      url = `/api/v1/assistant/conversations/search?q=${encodeURIComponent(searchQuery.trim())}&limit=30`;
+    }
+
+    const resp = await authFetch(url);
+    if (!resp.ok) {
+      container.innerHTML = '<div class="p-4 text-center text-red-500 text-xs">Failed to load conversations.</div>';
+      return;
+    }
+    const data = await resp.json();
+    container.innerHTML = '';
+
+    if (searchQuery && data.results) {
+      // Search results list
+      if (data.results.length === 0) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">No conversations matching search query.</div>';
+        return;
+      }
+      data.results.forEach(conv => {
+        container.appendChild(renderConversationHistoryItem(conv));
+      });
+    } else if (data.grouped) {
+      const groups = ['Today', 'Yesterday', 'Previous 7 Days', 'Older'];
+      let hasAny = false;
+
+      groups.forEach(grp => {
+        const items = data.grouped[grp] || [];
+        if (items.length > 0) {
+          hasAny = true;
+          const grpTitle = document.createElement('div');
+          grpTitle.className = 'gov-assistant-history-group-title';
+          grpTitle.textContent = grp;
+          container.appendChild(grpTitle);
+
+          items.forEach(conv => {
+            container.appendChild(renderConversationHistoryItem(conv));
+          });
+        }
+      });
+
+      if (!hasAny) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">No saved conversations yet.<br>Start chatting to build your intelligence history!</div>';
+      }
+    }
+  } catch (err) {
+    console.error('[Assistant] Error loading conversations:', err);
+    container.innerHTML = '<div class="p-4 text-center text-red-500 text-xs">Error loading conversations.</div>';
+  }
+}
+
+function renderConversationHistoryItem(conv) {
+  const item = document.createElement('div');
+  item.className = `gov-assistant-history-item ${conv.conversation_id === assistantActiveConversationId ? 'active' : ''}`;
+  item.onclick = (e) => {
+    if (e.target.closest('.history-action-btn')) return;
+    loadConversationById(conv.conversation_id);
+  };
+
+  let modeBadgeClass = 'gov-badge-mode-30day';
+  let modeLabel = '30-Day';
+  if (conv.is_permanent || conv.chat_mode === 'permanent') {
+    modeBadgeClass = 'gov-badge-mode-permanent';
+    modeLabel = 'Permanent';
+  } else if (conv.chat_mode === 'temporary') {
+    modeBadgeClass = 'gov-badge-mode-temporary';
+    modeLabel = 'Temporary';
+  }
+
+  const dateStr = conv.updated_at ? new Date(conv.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const safeTitle = safeEscapeHTML(conv.title || 'Untitled Chat');
+  const rawTitleAttr = (conv.title || 'Untitled Chat').replace(/'/g, "\\'");
+
+  item.innerHTML = `
+    <div class="flex flex-col min-w-0 flex-1 pr-2">
+      <div class="flex items-center gap-1.5 mb-1">
+        <span class="${modeBadgeClass}">${modeLabel}</span>
+        <span class="text-[11.5px] font-bold text-[#071324] truncate" title="${safeTitle}">${safeTitle}</span>
+      </div>
+      <div class="text-[10px] text-slate-500 truncate italic">
+        ${conv.last_message ? safeEscapeHTML(conv.last_message.slice(0, 50)) : (conv.last_project_code ? 'Project #' + conv.last_project_code : 'Conversation')}
+      </div>
+      <div class="text-[9px] text-slate-400 mt-1">${dateStr} • ${conv.message_count || 0} messages</div>
+    </div>
+    <div class="flex items-center gap-0.5 flex-shrink-0">
+      <button onclick="renameConversationById('${conv.conversation_id}', '${rawTitleAttr}')" class="history-action-btn gov-assistant-header-btn" title="Rename Conversation">
+        <span class="material-symbols-outlined text-[13px]">edit</span>
+      </button>
+      <button onclick="togglePermanentById('${conv.conversation_id}', ${Boolean(conv.is_permanent)})" class="history-action-btn gov-assistant-header-btn ${conv.is_permanent ? 'text-blue-700' : ''}" title="${conv.is_permanent ? 'Make 30-Day' : 'Save Permanently'}">
+        <span class="material-symbols-outlined text-[13px]">${conv.is_permanent ? 'bookmark' : 'bookmark_border'}</span>
+      </button>
+      <button onclick="exportConversationById('${conv.conversation_id}', 'txt')" class="history-action-btn gov-assistant-header-btn" title="Export as TXT">
+        <span class="material-symbols-outlined text-[13px]">download</span>
+      </button>
+      <button onclick="promptDeleteConversation('${conv.conversation_id}')" class="history-action-btn gov-assistant-header-btn text-red-500 hover:text-red-700 hover:bg-red-50" title="Delete Conversation">
+        <span class="material-symbols-outlined text-[13px]">delete</span>
+      </button>
+    </div>
+  `;
+
+  return item;
+}
+
+async function loadConversationById(conversationId) {
+  if (!conversationId) return;
+  try {
+    const resp = await authFetch(`/api/v1/assistant/conversations/${conversationId}`);
+    if (!resp.ok) {
+      showToast('Could not load conversation history.', 'error');
+      return;
+    }
+    const data = await resp.json();
+    const conv = data.conversation;
+    const messages = data.messages || [];
+
+    assistantActiveConversationId = conv.conversation_id;
+    assistantActiveTitle = conv.title || 'Conversation';
+    assistantActiveChatMode = conv.chat_mode || '30-day';
+    assistantActiveIsPermanent = Boolean(conv.is_permanent);
+
+    try {
+      sessionStorage.setItem('sih_assistant_conversation_id', assistantActiveConversationId);
+    } catch (e) {}
+
+    updateAssistantTitleUI(assistantActiveTitle);
+    updateAssistantModeUI(assistantActiveChatMode);
+    updatePermanentToggleUI(assistantActiveIsPermanent);
+
+    // Render messages into container
+    const container = document.getElementById('assistant-messages-container');
+    if (container) {
+      container.innerHTML = '';
+      assistantHistory = [];
+
+      messages.forEach(m => {
+        appendAssistantMessageNode(m.role, m.content, m.tools_called, m.client_actions);
+        assistantHistory.push({
+          role: m.role,
+          content: m.content,
+          tools_called: m.tools_called,
+          client_actions: m.client_actions
+        });
+      });
+      scrollAssistantToBottom();
+    }
+
+    closeAssistantHistoryPanel();
+    showToast(`Loaded "${assistantActiveTitle}"`, 'info');
+  } catch (err) {
+    console.error('[Assistant] Error loading conversation detail:', err);
+    showToast('Failed to load conversation.', 'error');
+  }
+}
+
+async function promptRenameCurrentChat() {
+  if (!assistantActiveConversationId) {
+    const newTitle = prompt('Enter a new title for this conversation:', assistantActiveTitle);
+    if (newTitle && newTitle.trim()) {
+      assistantActiveTitle = newTitle.trim();
+      updateAssistantTitleUI(assistantActiveTitle);
+    }
+    return;
+  }
+  renameConversationById(assistantActiveConversationId, assistantActiveTitle);
+}
+
+async function renameConversationById(conversationId, oldTitle) {
+  const newTitle = prompt('Enter new conversation title:', oldTitle || '');
+  if (!newTitle || !newTitle.trim() || newTitle.trim() === oldTitle) return;
+
+  try {
+    const resp = await authFetch(`/api/v1/assistant/conversations/${conversationId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTitle.trim() })
+    });
+    if (resp.ok) {
+      if (conversationId === assistantActiveConversationId) {
+        assistantActiveTitle = newTitle.trim();
+        updateAssistantTitleUI(assistantActiveTitle);
+      }
+      showToast('Conversation renamed.', 'success');
+      loadAssistantConversations();
+    }
+  } catch (e) {
+    console.error('[Assistant] Error renaming conversation:', e);
+  }
+}
+
+async function togglePermanentForActiveChat() {
+  if (!assistantActiveConversationId) {
+    const targetMode = assistantActiveIsPermanent ? '30-day' : 'permanent';
+    selectAssistantChatMode(targetMode);
+    return;
+  }
+  togglePermanentById(assistantActiveConversationId, assistantActiveIsPermanent);
+}
+
+async function togglePermanentById(conversationId, currentlyPermanent) {
+  try {
+    const endpoint = currentlyPermanent
+      ? `/api/v1/assistant/conversations/${conversationId}`
+      : `/api/v1/assistant/conversations/${conversationId}/permanent`;
+
+    const method = currentlyPermanent ? 'PATCH' : 'POST';
+    const body = currentlyPermanent ? JSON.stringify({ is_permanent: false, chat_mode: '30-day' }) : undefined;
+
+    const resp = await authFetch(endpoint, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (conversationId === assistantActiveConversationId) {
+        updatePermanentToggleUI(data.is_permanent);
+        updateAssistantModeUI(data.chat_mode);
+      }
+      showToast(data.is_permanent ? 'Chat saved permanently.' : 'Chat set to 30-day retention.', 'success');
+      loadAssistantConversations();
+    }
+  } catch (e) {
+    console.error('[Assistant] Error toggling permanent mode:', e);
+  }
+}
+
+function promptDeleteConversation(conversationId) {
+  assistantConversationToDelete = conversationId;
+  const modal = document.getElementById('assistant-delete-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAssistantDeleteModal() {
+  assistantConversationToDelete = null;
+  const modal = document.getElementById('assistant-delete-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function executeConfirmedDeleteConversation() {
+  const convId = assistantConversationToDelete;
+  closeAssistantDeleteModal();
+  if (!convId) return;
+
+  try {
+    const resp = await authFetch(`/api/v1/assistant/conversations/${convId}`, {
+      method: 'DELETE'
+    });
+    if (resp.ok) {
+      showToast('Conversation deleted permanently.', 'info');
+      if (convId === assistantActiveConversationId) {
+        startNewAssistantChat();
+      }
+      loadAssistantConversations();
+    }
+  } catch (e) {
+    console.error('[Assistant] Error deleting conversation:', e);
+  }
+}
+
+function confirmDeleteCurrentTemporaryChat() {
+  if (assistantActiveConversationId) {
+    promptDeleteConversation(assistantActiveConversationId);
+  } else {
+    startNewAssistantChat();
+  }
+}
+
+function handleAssistantSearchInput(val) {
+  const clearBtn = document.getElementById('assistant-search-clear');
+  if (clearBtn) {
+    if (val && val.length > 0) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+  }
+
+  if (assistantHistorySearchTimer) clearTimeout(assistantHistorySearchTimer);
+  assistantHistorySearchTimer = setTimeout(() => {
+    loadAssistantConversations(val);
+  }, 250);
+}
+
+function clearAssistantSearch() {
+  const searchInput = document.getElementById('assistant-history-search');
+  if (searchInput) searchInput.value = '';
+  handleAssistantSearchInput('');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('assistant-mode-dropdown');
+  const btn = document.getElementById('assistant-mode-btn');
+  if (dd && !dd.classList.contains('hidden')) {
+    if (btn && !btn.contains(e.target) && !dd.contains(e.target)) {
+      dd.classList.add('hidden');
+    }
+  }
+});
+
+
+async function exportConversationById(conversationId, format = 'txt') {
+  if (!conversationId) return;
+  try {
+    const resp = await authFetch(`/api/v1/assistant/conversations/${conversationId}/export?format=${format}`);
+    if (!resp.ok) {
+      showToast('Failed to export conversation transcript.', 'error');
+      return;
+    }
+    const blob = await resp.blob();
+    const disposition = resp.headers.get('content-disposition');
+    let filename = `chat_${conversationId.slice(0, 8)}.${format}`;
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    showToast(`Conversation exported as ${format.toUpperCase()}`, 'success');
+  } catch (err) {
+    console.error('[Assistant] Export error:', err);
+    showToast('Export failed.', 'error');
+  }
+}
+
+function toggleAssistantExportDropdown(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('assistant-export-dropdown');
+  if (dd) dd.classList.toggle('hidden');
+}
+
+function exportActiveChat(format = 'txt') {
+  const dd = document.getElementById('assistant-export-dropdown');
+  if (dd) dd.classList.add('hidden');
+  if (!assistantActiveConversationId) {
+    showToast('Please start or select a conversation to export.', 'info');
+    return;
+  }
+  exportConversationById(assistantActiveConversationId, format);
+}
+
+// Window bindings for UI triggers
+window.toggleAssistantDrawer = toggleAssistantDrawer;
+window.openAssistantDrawer = openAssistantDrawer;
+window.closeAssistantDrawer = closeAssistantDrawer;
+window.startNewAssistantChat = startNewAssistantChat;
+window.sendAssistantMessage = sendAssistantMessage;
+window.clearAssistantChat = clearAssistantChat;
+window.sendAssistantSuggestedPrompt = sendAssistantSuggestedPrompt;
+window.handleAssistantSubmit = handleAssistantSubmit;
+window.handleAssistantInputKeydown = handleAssistantInputKeydown;
+window.autoResizeAssistantInput = autoResizeAssistantInput;
+window.stopAssistantGeneration = stopAssistantGeneration;
+window.copyAssistantMessageText = copyAssistantMessageText;
+window.retryLastAssistantTurn = retryLastAssistantTurn;
+window.executeAssistantClientAction = executeAssistantClientAction;
+window.toggleAssistantModeDropdown = toggleAssistantModeDropdown;
+window.selectAssistantChatMode = selectAssistantChatMode;
+window.toggleAssistantHistoryPanel = toggleAssistantHistoryPanel;
+window.openAssistantHistoryPanel = openAssistantHistoryPanel;
+window.closeAssistantHistoryPanel = closeAssistantHistoryPanel;
+window.promptRenameCurrentChat = promptRenameCurrentChat;
+window.renameConversationById = renameConversationById;
+window.togglePermanentForActiveChat = togglePermanentForActiveChat;
+window.togglePermanentById = togglePermanentById;
+window.promptDeleteConversation = promptDeleteConversation;
+window.closeAssistantDeleteModal = closeAssistantDeleteModal;
+window.executeConfirmedDeleteConversation = executeConfirmedDeleteConversation;
+window.confirmDeleteCurrentTemporaryChat = confirmDeleteCurrentTemporaryChat;
+window.handleAssistantSearchInput = handleAssistantSearchInput;
+window.clearAssistantSearch = clearAssistantSearch;
+window.loadAssistantConversations = loadAssistantConversations;
+
+
+window.exportConversationById = exportConversationById;
+window.exportActiveChat = exportActiveChat;
+window.toggleAssistantExportDropdown = toggleAssistantExportDropdown;
